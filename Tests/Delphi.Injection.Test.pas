@@ -1,346 +1,240 @@
-unit Delphi.Injection.Test;
+﻿unit Delphi.Injection.Test;
 
 interface
 
-uses DUnitX.TestFramework, System.Rtti, Delphi.Injection;
+uses DUnitX.TestFramework, System.Rtti, Delphi.Injection, System.Classes;
 
 type
 {
-  Fun��o para localizar um servi�o registrado
-  Quando criar o servi�o, tem que encontrar o construtor correto, ou dar um erro
-  Registrar servi�o pelo nome, vai atributo
+  Testes a serem feitos:
+  - Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe
+  - Lançar um erro quando não encontrar todos os parâmetros do construtor da classe
+  - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
+  - Se no nível atual não tiver um construtor tem que ir para a base da classe, e assim por diante até encontrar o construtor do TObject
+  - Se tentar resolver um interface, tem que buscar na lista de tipos, qual implementa essa classe e construir a mesma
+  - Injetar campos das classes, isso tem que ser via anotação
+  - Permitir registrar construtores para os tipos, afim de permitir o programador decidir como a instância deve ser gerada
+  - Controle de ciclo de vida do objecto (Singleton, Thread, etc...)
+    * Ideia, quando o ciclo de vida por por thread, quando for requisitado para resolver algum valor dentro de um thread, abrir um outra thread que chama o WaitFor da thread corrente, e quando terminar, elimina
+    as váriaveis criadas nessa thread
+  - Limitar os tipos resolviveis á classes, interfaces e records?
+    * Acredito que sim, por que os tipos nativos, não tem por que serem resolvidos, e no caso do records, apenas os campos podem ser resolvidos
 }
-  [TestFixture]
-  TDelphiInjectionRegistrationTest = class
-  public
-    [SetupFixture]
-    procedure SetupFixture;
-    [Test]
-    procedure WhenAddAServiceByTypeMustBeAddedToTheUnnamedList;
-    [Test]
-    procedure WhenAddAServiceByTypeInfoMustResolveTheRttiTypeAndAddToUnnamedList;
-    [Test]
-    procedure TheServiceRegisteredByRttiTypeMustBeInTheDictionary;
-    [Test]
-    procedure TheServiceRegisteredByTypeInfoMustBeInTheDictionary;
-    [Test]
-    procedure WhenAddANamedServiceMustAddToTheNamedServiceList;
-    [Test]
-    procedure TheAddedNamedServiceByRttiTypeMustBeInTheNamedListDictionary;
-    [Test]
-    procedure WhenAddANamedServiceByTypeInfoMustAddToTheNamedServiceList;
-    [Test]
-    procedure TheAddedNamedServiceByTypeInfoMustBeInTheNamedListDictionary;
-    [Test]
-    procedure WhenCallRegisterAllServicesMustRegisterAllServicesWithTheRegisterTypeAttribute;
-    [Test]
-    procedure WhenTheRegisterTypeAttributeHasAServiceNameTheTypeMustBeRegisteredInNamedServiceList;
-    [Test]
-    procedure TheServiceRegisteredCountMustBeTheCountOfAllServicesRegistered;
-  end;
 
   [TestFixture]
   TDelphiInjectionTest = class
+  private
+    FInjector: TInjector;
   public
     [SetupFixture]
     procedure SetupFixture;
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
-    procedure WhenTryToResolveATypeMustRegisterAllTypesAutomatically;
+    procedure WhenResolveAnClassMustCreateTheClassAndReturnTheInstance;
     [Test]
-    procedure WhenTryToResolveATypeMustRegisterAllTypesAutomaticallyJustOnce;
+    procedure WhenTheClassHasItsOwnContrutctorThisMustBeCalledInTheResolver;
     [Test]
-    procedure WhenCallTheRegisterMustAddTheServiceToTheRegistrationList;
+    procedure WhenTheContructorHasParamsAndTheParamIsPassedInTheResolverMustCreateTheClassWithThisParams;
+    [TestCase('No param', '123,abc')]
+    [TestCase('One param', '456,abc,456')]
+    [TestCase('Two params', '789,def,789,def')]
+    procedure WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheTypeOfThePassedParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
     [Test]
-    procedure TheRegisteredTypeMustBeInTheRegistrationListAsExpected;
+    procedure WhenAClassDoesntHaveAConstructorMustCreateTheClassFromTheBaseClassConstructor;
     [Test]
-    procedure WhenRegisterAServiceByNameMustBeAddedToTheRegistrationList;
-    [Test]
-    procedure TheNameRegisteredMustBeTheSamePassedInTheRegisterTypeFunction;
-    [Test]
-    procedure WhenTryToResolveARegisteredTypeMustReturnTheInstanceOfThisServiceCreated;
+    procedure WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor;
   end;
 
-  [TestFixture]
-  TDelphiInjectionServiceResolverTest = class
+  TSimpleClass = class
+  end;
+
+  TClassWithConstructor = class
+  private
+    FTheConstructorCalled: Boolean;
   public
+    constructor Create;
+
+    property TheConstructorCalled: Boolean read FTheConstructorCalled write FTheConstructorCalled;
   end;
 
-  [TestFixture]
-  TRttiObjectHelperTest = class
+  TClassWithParamsInConstructor = class
+  private
+    FParam1: TObject;
+    FParam2: Integer;
   public
-    [Test]
-    procedure WhenCallGetAttributeMustReturnTheAttributePassedInParams;
-    [Test]
-    procedure TheAttributeMustBeTheSameTypeInCallingParam;
+    constructor Create(Param1: TObject; Param2: Integer);
+
+    property Param1: TObject read FParam1 write FParam1;
+    property Param2: Integer read FParam2 write FParam2;
   end;
 
-  [Implements]
-  [RegisterType]
-  TMyService = class
+  TClassWithThreeContructors = class
+  private
+    FParam1: Integer;
+    FParam2: String;
+  public
+    constructor Create; overload;
+    constructor Create(Param: Integer); overload;
+    constructor Create(Param1: Integer; Param2: String); overload;
+
+    property Param1: Integer read FParam1 write FParam1;
+    property Param2: String read FParam2 write FParam2;
   end;
 
-  [RegisterType]
-  TMyAnotherService = class
-  end;
-
-  [RegisterType('NamedService')]
-  TMyNamedService = class
+  TClassInheritedWithoutConstructor = class(TClassWithConstructor)
+  private
+    FEmptyProperty: Integer;
+  public
+    property EmptyProperty: Integer read FEmptyProperty write FEmptyProperty;
   end;
 
 implementation
 
-uses System.TypInfo;
+uses System.TypInfo, System.SysUtils;
 
 { TDelphiInjectionTest }
+
+procedure TDelphiInjectionTest.Setup;
+begin
+  FInjector := TInjector.Create;
+end;
 
 procedure TDelphiInjectionTest.SetupFixture;
 begin
   var Context := TRttiContext.Create;
 
   for var RttiType in Context.GetTypes do
-    RttiType.GetAttributes;
+    RttiType.GetMethods;
 
   Context.Free;
 end;
 
-procedure TDelphiInjectionTest.TheNameRegisteredMustBeTheSamePassedInTheRegisterTypeFunction;
+procedure TDelphiInjectionTest.TearDown;
 begin
-  var Injector := TDelphiInjection.Create;
-
-  Injector.RegisterType<TMyService>('MyService');
-
-  Assert.AreEqual('MyService', Injector.Registration.NamedServices.Keys.ToArray[0]);
-
-  Injector.Free;
+  FInjector.Free;
 end;
 
-procedure TDelphiInjectionTest.TheRegisteredTypeMustBeInTheRegistrationListAsExpected;
+procedure TDelphiInjectionTest.WhenAClassDoesntHaveAConstructorMustCreateTheClassFromTheBaseClassConstructor;
 begin
-  var Injector := TDelphiInjection.Create;
+  var AClass := FInjector.Resolve<TClassInheritedWithoutConstructor>;
 
-  Injector.RegisterType<TMyService>;
+  Assert.IsNotNull(AClass);
 
-  Assert.AreEqual<PTypeInfo>(TypeInfo(TMyService), Injector.Registration.UnnamedServices.Keys.ToArray[0]);
+  Assert.AreEqual(0, AClass.EmptyProperty);
 
-  Injector.Free;
+  AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenCallTheRegisterMustAddTheServiceToTheRegistrationList;
+procedure TDelphiInjectionTest.WhenResolveAnClassMustCreateTheClassAndReturnTheInstance;
 begin
-  var Injector := TDelphiInjection.Create;
+  var AClass := FInjector.Resolve<TSimpleClass>;
 
-  Injector.RegisterType<TMyService>;
+  Assert.IsNotNull(AClass);
 
-  Assert.AreEqual(1, Injector.Registration.Count);
-
-  Injector.Free;
+  AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenRegisterAServiceByNameMustBeAddedToTheRegistrationList;
+procedure TDelphiInjectionTest.WhenTheClassHasItsOwnContrutctorThisMustBeCalledInTheResolver;
 begin
-  var Injector := TDelphiInjection.Create;
+  var AClass := FInjector.Resolve<TClassWithConstructor>;
 
-  Injector.RegisterType<TMyService>('MyService');
+  Assert.IsNotNull(AClass);
 
-  Assert.AreEqual(1, Injector.Registration.Count);
+  Assert.IsTrue(AClass.TheConstructorCalled);
 
-  Injector.Free;
+  AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenTryToResolveARegisteredTypeMustReturnTheInstanceOfThisServiceCreated;
+procedure TDelphiInjectionTest.WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheTypeOfThePassedParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
 begin
-  var Injector := TDelphiInjection.Create;
-  var MyService := Injector.Resolve<TMyService>;
+  var Params: TArray<TValue> := nil;
 
-  Assert.IsNotNull(MyService);
+  if ParamValue1 > 0 then
+  begin
+    SetLength(Params, 1);
+    Params[0] := ParamValue1;
+  end;
 
-  Injector.Free;
+  if not ParamValue2.IsEmpty then
+  begin
+    SetLength(Params, 2);
+    Params[1] := ParamValue2;
+  end;
+
+  var AClass := FInjector.Resolve<TClassWithThreeContructors>(Params);
+
+  Assert.IsNotNull(AClass);
+
+  Assert.AreEqual(ExpectParam1, AClass.Param1);
+
+  Assert.AreEqual(ExpectParam2, AClass.Param2);
+
+  AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenTryToResolveATypeMustRegisterAllTypesAutomatically;
+procedure TDelphiInjectionTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor;
 begin
-  var Injector := TDelphiInjection.Create;
-
-  Injector.Resolve<TMyService>;
-
-  Assert.AreEqual(3, Injector.Registration.Count);
-
-  Injector.Free;
+  Assert.IsTrue(False, 'Continuando daqui...');
 end;
 
-procedure TDelphiInjectionTest.WhenTryToResolveATypeMustRegisterAllTypesAutomaticallyJustOnce;
+procedure TDelphiInjectionTest.WhenTheContructorHasParamsAndTheParamIsPassedInTheResolverMustCreateTheClassWithThisParams;
 begin
-  var Injector := TDelphiInjection.Create;
+  var ObjectParam := TObject.Create;
 
-  Injector.Resolve<TMyService>;
+  var AClass := FInjector.Resolve<TClassWithParamsInConstructor>([ObjectParam, 1234]);
 
-  Injector.Resolve<TMyService>;
+  Assert.IsNotNull(AClass);
 
-  Injector.Resolve<TMyService>;
+  Assert.AreEqual(ObjectParam, AClass.Param1);
 
-  Assert.AreEqual(3, Injector.Registration.Count);
+  Assert.AreEqual(1234, AClass.Param2);
 
-  Injector.Free;
+  AClass.Free;
+
+  ObjectParam.Free;
 end;
 
-{ TDelphiInjectionRegistrationTest }
+{ TClassWithConstructor }
 
-procedure TDelphiInjectionRegistrationTest.SetupFixture;
+constructor TClassWithConstructor.Create;
 begin
-  var Context := TRttiContext.Create;
+  inherited;
 
-  for var RttiType in Context.GetTypes do
-    RttiType.GetAttributes;
-
-  Context.Free;
+  FTheConstructorCalled := True;
 end;
 
-procedure TDelphiInjectionRegistrationTest.TheAddedNamedServiceByRttiTypeMustBeInTheNamedListDictionary;
+{ TClassWithParamsInConstructor }
+
+constructor TClassWithParamsInConstructor.Create(Param1: TObject; Param2: Integer);
 begin
-  var Registration := TDelphiInjectionRegistration.Create;
+  inherited Create;
 
-  Registration.Add('MyService', TypeInfo(TMyService));
-
-  Assert.AreEqual('MyService', Registration.NamedServices.Keys.ToArray[0]);
-
-  Registration.Free;
+  FParam1 := Param1;
+  FParam2 := Param2;
 end;
 
-procedure TDelphiInjectionRegistrationTest.TheAddedNamedServiceByTypeInfoMustBeInTheNamedListDictionary;
+{ TClassWithThreeContructors }
+
+constructor TClassWithThreeContructors.Create;
 begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.Add('MyService', TypeInfo(TMyService));
-
-  Assert.AreEqual('MyService', Registration.NamedServices.Keys.ToArray[0]);
-
-  Registration.Free;
+  Create(123);
 end;
 
-procedure TDelphiInjectionRegistrationTest.TheServiceRegisteredByRttiTypeMustBeInTheDictionary;
+constructor TClassWithThreeContructors.Create(Param: Integer);
 begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.Add(TypeInfo(TMyService));
-
-  Assert.AreEqual<PTypeInfo>(TypeInfo(TMyService), Registration.UnnamedServices.Keys.ToArray[0]);
-
-  Registration.Free;
+  Create(Param, 'abc');
 end;
 
-procedure TDelphiInjectionRegistrationTest.TheServiceRegisteredByTypeInfoMustBeInTheDictionary;
+constructor TClassWithThreeContructors.Create(Param1: Integer; Param2: String);
 begin
-  var Registration := TDelphiInjectionRegistration.Create;
+  inherited Create;
 
-  Registration.Add(TypeInfo(TMyService));
-
-  Assert.AreEqual<PTypeInfo>(TypeInfo(TMyService), Registration.UnnamedServices.Keys.ToArray[0]);
-
-  Registration.Free;
-end;
-
-procedure TDelphiInjectionRegistrationTest.TheServiceRegisteredCountMustBeTheCountOfAllServicesRegistered;
-begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.Add(TypeInfo(TMyService));
-  Registration.Add('MyService', TypeInfo(TMyService));
-
-  Assert.AreEqual(2, Registration.Count);
-
-  Registration.Free;
-end;
-
-procedure TDelphiInjectionRegistrationTest.WhenAddANamedServiceByTypeInfoMustAddToTheNamedServiceList;
-begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.Add('MyService', TypeInfo(TMyService));
-
-  Assert.AreEqual(1, Registration.NamedServices.Count);
-
-  Registration.Free;
-end;
-
-procedure TDelphiInjectionRegistrationTest.WhenAddANamedServiceMustAddToTheNamedServiceList;
-begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.Add('MyService', TypeInfo(TMyService));
-
-  Assert.AreEqual(1, Registration.NamedServices.Count);
-
-  Registration.Free;
-end;
-
-procedure TDelphiInjectionRegistrationTest.WhenAddAServiceByTypeInfoMustResolveTheRttiTypeAndAddToUnnamedList;
-begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.Add(TypeInfo(TMyService));
-
-  Assert.AreEqual(1, Registration.UnnamedServices.Count);
-
-  Registration.Free;
-end;
-
-procedure TDelphiInjectionRegistrationTest.WhenAddAServiceByTypeMustBeAddedToTheUnnamedList;
-begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.Add(TypeInfo(TMyService));
-
-  Assert.AreEqual(1, Registration.UnnamedServices.Count);
-
-  Registration.Free;
-end;
-
-procedure TDelphiInjectionRegistrationTest.WhenCallRegisterAllServicesMustRegisterAllServicesWithTheRegisterTypeAttribute;
-begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.RegisterAllTypes;
-
-  Assert.AreEqual(2, Registration.UnnamedServices.Count);
-
-  Registration.Free;
-end;
-
-procedure TDelphiInjectionRegistrationTest.WhenTheRegisterTypeAttributeHasAServiceNameTheTypeMustBeRegisteredInNamedServiceList;
-begin
-  var Registration := TDelphiInjectionRegistration.Create;
-
-  Registration.RegisterAllTypes;
-
-  Assert.AreEqual(1, Registration.NamedServices.Count);
-
-  Registration.Free;
-end;
-
-{ TRttiObjectHelperTest }
-
-procedure TRttiObjectHelperTest.TheAttributeMustBeTheSameTypeInCallingParam;
-begin
-  var Context := TRttiContext.Create;
-  var RttiType := Context.GetType(TMyService);
-
-  var Attribute := RttiType.GetAttribute<RegisterType>;
-
-  Assert.AreEqual(RegisterType, Attribute.ClassType);
-
-  Context.Free;
-end;
-
-procedure TRttiObjectHelperTest.WhenCallGetAttributeMustReturnTheAttributePassedInParams;
-begin
-  var Context := TRttiContext.Create;
-  var RttiType := Context.GetType(TMyService);
-
-  var Attribute := RttiType.GetAttribute<RegisterType>;
-
-  Assert.IsNotNull(Attribute);
-
-  Context.Free;
+  FParam1 := Param1;
+  FParam2 := Param2;
 end;
 
 end.
+

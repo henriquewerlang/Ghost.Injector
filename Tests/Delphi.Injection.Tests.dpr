@@ -1,4 +1,4 @@
-program Delphi.Injection.Tests;
+﻿program Delphi.Injection.Tests;
 
 {$STRONGLINKTYPES ON}
 
@@ -11,5 +11,7 @@ uses
   Delphi.Injection.Test in 'Delphi.Injection.Test.pas';
 
 begin
+  FastMM_EnterDebugMode;
+
   TestInsight.DUnitX.RunRegisteredTests;
 end.
