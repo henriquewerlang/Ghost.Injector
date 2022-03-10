@@ -11,6 +11,8 @@ type
   - Lançar um erro quando não encontrar todos os parâmetros do construtor da classe
   - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
   - Se no nível atual não tiver um construtor tem que ir para a base da classe, e assim por diante até encontrar o construtor do TObject
+    * Tem que verificar se a classe sendo contruída tem construtor, se tiver e não conseguir construir tem que dar erro
+    * Isso tem que ocorrer em todos os níveis, salvo, não encontrar contrutor me nível nenhum
   - Se tentar resolver um interface, tem que buscar na lista de tipos, qual implementa essa classe e construir a mesma
   - Injetar campos das classes, isso tem que ser via anotação
   - Permitir registrar construtores para os tipos, afim de permitir o programador decidir como a instância deve ser gerada
@@ -19,6 +21,12 @@ type
     as váriaveis criadas nessa thread
   - Limitar os tipos resolviveis á classes, interfaces e records?
     * Acredito que sim, por que os tipos nativos, não tem por que serem resolvidos, e no caso do records, apenas os campos podem ser resolvidos
+  - Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo
+  - Criar função de registro de tipo com uma fábrica de objetos
+  - Registrar serviços nomeados para serem utilizados por nome depois
+  - Como definir qual objeto derivado utilizar no construtor?
+    * Provavelmente terei que utilizar anotações por não saber qual escolher
+    * Mesmo assim pode existir mais de uma opção, mas resolver o problema do parâmetro se uma classe base
 }
 
   [TestFixture]
@@ -46,6 +54,12 @@ type
     procedure WhenAClassDoesntHaveAConstructorMustCreateTheClassFromTheBaseClassConstructor;
     [Test]
     procedure WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor;
+    [Test]
+    procedure WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor2;
+    [Test]
+    procedure IfCantFindTheConstructorMustToRaiseAnError;
+    [Test]
+    procedure WhenTryToResolveAnInterfaceMustLocateTheClassThatImplementsAndCreateTheClass;
   end;
 
   TSimpleClass = class
@@ -91,11 +105,39 @@ type
     property EmptyProperty: Integer read FEmptyProperty write FEmptyProperty;
   end;
 
+  TClassWithConstructorWithTheSameParameterCount = class
+  private
+    FIntegerProperty: Integer;
+    FStringProperty: String;
+  public
+    constructor Create(Param: Integer); overload;
+    constructor Create(Param: String); overload;
+
+    property IntegerProperty: Integer read FIntegerProperty write FIntegerProperty;
+    property StringProperty: String read FStringProperty write FStringProperty;
+  end;
+
+  IMyInterface = interface
+    ['{904F4775-6482-447C-8FDA-849036C92077}']
+  end;
+
+  TMyInterface = class(TInterfacedObject, IMyInterface)
+  end;
+
 implementation
 
 uses System.TypInfo, System.SysUtils;
 
 { TDelphiInjectionTest }
+
+procedure TDelphiInjectionTest.IfCantFindTheConstructorMustToRaiseAnError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>([123.123]);
+    end, EConstructorNotFound);
+end;
 
 procedure TDelphiInjectionTest.Setup;
 begin
@@ -107,7 +149,11 @@ begin
   var Context := TRttiContext.Create;
 
   for var RttiType in Context.GetTypes do
+  begin
     RttiType.GetMethods;
+
+    RttiType.QualifiedName;
+  end;
 
   Context.Free;
 end;
@@ -177,7 +223,20 @@ end;
 
 procedure TDelphiInjectionTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor;
 begin
-  Assert.IsTrue(False, 'Continuando daqui...');
+  var AClass := FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>(['abc']);
+
+  Assert.AreEqual('abc', AClass.StringProperty);
+
+  AClass.Free;
+end;
+
+procedure TDelphiInjectionTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor2;
+begin
+  var AClass := FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>([123]);
+
+  Assert.AreEqual(123, AClass.IntegerProperty);
+
+  AClass.Free;
 end;
 
 procedure TDelphiInjectionTest.WhenTheContructorHasParamsAndTheParamIsPassedInTheResolverMustCreateTheClassWithThisParams;
@@ -195,6 +254,13 @@ begin
   AClass.Free;
 
   ObjectParam.Free;
+end;
+
+procedure TDelphiInjectionTest.WhenTryToResolveAnInterfaceMustLocateTheClassThatImplementsAndCreateTheClass;
+begin
+  var MyInterface := FInjector.Resolve<IMyInterface>;
+
+  Assert.IsNotNull(MyInterface);
 end;
 
 { TClassWithConstructor }
@@ -234,6 +300,22 @@ begin
 
   FParam1 := Param1;
   FParam2 := Param2;
+end;
+
+{ TClassWithConstructorWithTheSameParameterCount }
+
+constructor TClassWithConstructorWithTheSameParameterCount.Create(Param: String);
+begin
+  inherited Create;
+
+  FStringProperty := Param;
+end;
+
+constructor TClassWithConstructorWithTheSameParameterCount.Create(Param: Integer);
+begin
+  inherited Create;
+
+  FIntegerProperty := Param;
 end;
 
 end.

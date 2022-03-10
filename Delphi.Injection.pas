@@ -2,14 +2,19 @@
 
 interface
 
-uses System.TypInfo, System.Rtti, System.Generics.Collections;
+uses System.TypInfo, System.Rtti, System.Generics.Collections, System.SysUtils;
 
 type
+  EConstructorNotFound = class(Exception)
+  public
+    constructor Create(const AType: TRttiType);
+  end;
+
   TInjector = class
   private
     FContext: TRttiContext;
 
-    function FindCandidate(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
+    function FindCandidateConstructor(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
   public
     constructor Create;
 
@@ -25,8 +30,6 @@ type
   end;
 
 implementation
-
-uses System.SysUtils;
 
 { TInjector }
 
@@ -44,20 +47,32 @@ begin
   inherited;
 end;
 
-function TInjector.FindCandidate(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
-begin
-  Result := nil;
+function TInjector.FindCandidateConstructor(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
 
+  function SameParameters(const AMethod: TRttiMethod): Boolean;
+  begin
+    var Parameters := AMethod.GetParameters;
+    Result := Length(Parameters) = Length(Params);
+
+    if Result then
+      for var A := 0 to High(Params) do
+        if Parameters[A].ParamType.TypeKind <> Params[A].Kind then
+          Exit(False);
+  end;
+
+begin
   for var AMethod in AType.GetMethods do
-    if AMethod.IsConstructor and (Length(AMethod.GetParameters) = Length(Params)) then
+    if AMethod.IsConstructor and SameParameters(AMethod) then
       Exit(AMethod);
+
+  raise EConstructorNotFound.Create(AType);
 end;
 
 function TInjector.Resolve<T>(const Params: TArray<TValue>): T;
 begin
   var RttiType := FContext.GetType(TypeInfo(T));
 
-  Result := FindCandidate(RttiType, Params).Invoke(RttiType.AsInstance.MetaclassType, Params).AsType<T>;
+  Result := FindCandidateConstructor(RttiType, Params).Invoke(RttiType.AsInstance.MetaclassType, Params).AsType<T>;
 end;
 
 function TInjector.Resolve<T>: T;
@@ -74,6 +89,13 @@ begin
   for var Attribute in GetAttributes do
     if Attribute is T then
       Exit(Attribute as T);
+end;
+
+{ EConstructorNotFound }
+
+constructor EConstructorNotFound.Create(const AType: TRttiType);
+begin
+  inherited CreateFmt('Constructor not found to the type %s!', [AType.QualifiedName]);
 end;
 
 end.
