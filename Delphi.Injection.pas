@@ -14,7 +14,8 @@ type
   private
     FContext: TRttiContext;
 
-    function FindCandidateConstructor(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
+    function FindConcreteType(const AType: TRttiType): TRttiType;
+    function FindConstructorCandidate(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
   public
     constructor Create;
 
@@ -25,8 +26,12 @@ type
   end;
 
   TRttiObjectHelper = class helper for TRttiObject
+  private
+    function GetIsInterface: Boolean;
   public
     function GetAttribute<T: TCustomAttribute>: T;
+
+    property IsInterface: Boolean read GetIsInterface;
   end;
 
 implementation
@@ -47,7 +52,19 @@ begin
   inherited;
 end;
 
-function TInjector.FindCandidateConstructor(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
+function TInjector.FindConcreteType(const AType: TRttiType): TRttiType;
+begin
+  Result := AType;
+
+  if Result.IsInterface then
+    for var RttiType in FContext.GetTypes do
+      if RttiType.IsInstance then
+        for var InterfaceImplementation in RttiType.AsInstance.GetDeclaredImplementedInterfaces do
+          if InterfaceImplementation = AType then
+            Exit(RttiType);
+end;
+
+function TInjector.FindConstructorCandidate(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
 
   function SameParameters(const AMethod: TRttiMethod): Boolean;
   begin
@@ -70,9 +87,9 @@ end;
 
 function TInjector.Resolve<T>(const Params: TArray<TValue>): T;
 begin
-  var RttiType := FContext.GetType(TypeInfo(T));
+  var RttiType := FindConcreteType(FContext.GetType(TypeInfo(T)));
 
-  Result := FindCandidateConstructor(RttiType, Params).Invoke(RttiType.AsInstance.MetaclassType, Params).AsType<T>;
+  Result := FindConstructorCandidate(RttiType, Params).Invoke(RttiType.AsInstance.MetaclassType, Params).AsType<T>;
 end;
 
 function TInjector.Resolve<T>: T;
@@ -89,6 +106,11 @@ begin
   for var Attribute in GetAttributes do
     if Attribute is T then
       Exit(Attribute as T);
+end;
+
+function TRttiObjectHelper.GetIsInterface: Boolean;
+begin
+  Result := Self is TRttiInterfaceType;
 end;
 
 { EConstructorNotFound }

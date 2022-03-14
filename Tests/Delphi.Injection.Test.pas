@@ -27,6 +27,21 @@ type
   - Como definir qual objeto derivado utilizar no construtor?
     * Provavelmente terei que utilizar anotações por não saber qual escolher
     * Mesmo assim pode existir mais de uma opção, mas resolver o problema do parâmetro se uma classe base
+
+  Construindo uma interface
+  - Localizar uma classe que implementa ela
+    * Tem que verificar se as classes encontradas tem alguma anotação de nome de serviço. Se tiver, verificar se o parâmetro e nome de serviço fecha. Se encontrar mais de uma
+      fechando os critérios, por nome de serviço ou padrão, tem que dar erro
+  - Por uma anotação de qual classe deve ser criada
+    * Teria que ser o nome, senão teria problema de referência circular
+  - Por um fábrica de objetos, que implementem essa interface
+    * Uma função fornecida pelo programdor para criar esse tipo de classe
+  Contruindo uma class
+  - Tem localizar os contrutores da própria classe
+  - Senão encontrar contrutores na própria classe, tem que ir descendo os níveis, no primeiro que encontrar, tem que utilizar algum contrutor desse nível
+    * Se os parâmetros não forem iguais, tem que dar erro
+    * Se a classe tem derivações, e em algum nível de derivação exitir um construtor, tem que utilizar ele, para não dar o problema do Spring, de utilizar o contrutor do TObject,
+      sendo que existe um contrutor em qualquer nível das classes herdadas
 }
 
   [TestFixture]
@@ -121,7 +136,7 @@ type
     ['{904F4775-6482-447C-8FDA-849036C92077}']
   end;
 
-  TMyInterface = class(TInterfacedObject, IMyInterface)
+  TMyObjectInterface = class(TInterfacedObject, IMyInterface)
   end;
 
 implementation
