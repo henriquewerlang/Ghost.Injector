@@ -36,6 +36,8 @@ type
     * Teria que ser o nome, senão teria problema de referência circular
   - Por um fábrica de objetos, que implementem essa interface
     * Uma função fornecida pelo programdor para criar esse tipo de classe
+  - A busca completa é muito lenta, verificar uma forma de armazenar um registro disso
+
   Contruindo uma class
   - Tem localizar os contrutores da própria classe
   - Senão encontrar contrutores na própria classe, tem que ir descendo os níveis, no primeiro que encontrar, tem que utilizar algum contrutor desse nível
