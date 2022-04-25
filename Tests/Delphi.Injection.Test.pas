@@ -47,7 +47,7 @@ type
 }
 
   [TestFixture]
-  TDelphiInjectionTest = class
+  TInjectorTest = class
   private
     FInjector: TInjector;
   public
@@ -77,6 +77,27 @@ type
     procedure IfCantFindTheConstructorMustToRaiseAnError;
     [Test]
     procedure WhenTryToResolveAnInterfaceMustLocateTheClassThatImplementsAndCreateTheClass;
+    [Test]
+    procedure WhenRegisterAFactoryMustUseTheFactoryToCreateTheResolvedObject;
+  end;
+
+  [TestFixture]
+  TFunctionFactoryTest = class
+  public
+    [Test]
+    procedure WhenUseTheFunctionFactoryMustCallThePassedFunctionToFactory;
+    [Test]
+    procedure WhenCallTheFactoryConstructorMustPassTheParamsToTheFunction;
+    [Test]
+    procedure TheConstructorFunctionMustReturnTheInstanceOfTheObjectCreated;
+    [Test]
+    procedure TheInstanceCreatedMustBeTheTypeExpected;
+  end;
+
+  [TestFixture]
+  TObjectFactoryTest = class
+  public
+
   end;
 
   TSimpleClass = class
@@ -143,11 +164,11 @@ type
 
 implementation
 
-uses System.TypInfo, System.SysUtils;
+uses System.TypInfo, System.SysUtils, Delphi.Mock;
 
-{ TDelphiInjectionTest }
+{ TInjectorTest }
 
-procedure TDelphiInjectionTest.IfCantFindTheConstructorMustToRaiseAnError;
+procedure TInjectorTest.IfCantFindTheConstructorMustToRaiseAnError;
 begin
   Assert.WillRaise(
     procedure
@@ -156,12 +177,12 @@ begin
     end, EConstructorNotFound);
 end;
 
-procedure TDelphiInjectionTest.Setup;
+procedure TInjectorTest.Setup;
 begin
   FInjector := TInjector.Create;
 end;
 
-procedure TDelphiInjectionTest.SetupFixture;
+procedure TInjectorTest.SetupFixture;
 begin
   var Context := TRttiContext.Create;
 
@@ -175,12 +196,12 @@ begin
   Context.Free;
 end;
 
-procedure TDelphiInjectionTest.TearDown;
+procedure TInjectorTest.TearDown;
 begin
   FInjector.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenAClassDoesntHaveAConstructorMustCreateTheClassFromTheBaseClassConstructor;
+procedure TInjectorTest.WhenAClassDoesntHaveAConstructorMustCreateTheClassFromTheBaseClassConstructor;
 begin
   var AClass := FInjector.Resolve<TClassInheritedWithoutConstructor>;
 
@@ -191,7 +212,16 @@ begin
   AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenResolveAnClassMustCreateTheClassAndReturnTheInstance;
+procedure TInjectorTest.WhenRegisterAFactoryMustUseTheFactoryToCreateTheResolvedObject;
+begin
+//  var Factory := TMock.CreateInterface<IFactory>;
+//
+//  Factory.Expect.Once.When.Construct;
+//
+//  FInjector.RegisterFactory<IMyInterface>(Factory.Instance);
+end;
+
+procedure TInjectorTest.WhenResolveAnClassMustCreateTheClassAndReturnTheInstance;
 begin
   var AClass := FInjector.Resolve<TSimpleClass>;
 
@@ -200,7 +230,7 @@ begin
   AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenTheClassHasItsOwnContrutctorThisMustBeCalledInTheResolver;
+procedure TInjectorTest.WhenTheClassHasItsOwnContrutctorThisMustBeCalledInTheResolver;
 begin
   var AClass := FInjector.Resolve<TClassWithConstructor>;
 
@@ -211,7 +241,7 @@ begin
   AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheTypeOfThePassedParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
+procedure TInjectorTest.WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheTypeOfThePassedParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
 begin
   var Params: TArray<TValue> := nil;
 
@@ -238,7 +268,7 @@ begin
   AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor;
+procedure TInjectorTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor;
 begin
   var AClass := FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>(['abc']);
 
@@ -247,7 +277,7 @@ begin
   AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor2;
+procedure TInjectorTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor2;
 begin
   var AClass := FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>([123]);
 
@@ -256,7 +286,7 @@ begin
   AClass.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenTheContructorHasParamsAndTheParamIsPassedInTheResolverMustCreateTheClassWithThisParams;
+procedure TInjectorTest.WhenTheContructorHasParamsAndTheParamIsPassedInTheResolverMustCreateTheClassWithThisParams;
 begin
   var ObjectParam := TObject.Create;
 
@@ -273,7 +303,7 @@ begin
   ObjectParam.Free;
 end;
 
-procedure TDelphiInjectionTest.WhenTryToResolveAnInterfaceMustLocateTheClassThatImplementsAndCreateTheClass;
+procedure TInjectorTest.WhenTryToResolveAnInterfaceMustLocateTheClassThatImplementsAndCreateTheClass;
 begin
   var MyInterface := FInjector.Resolve<IMyInterface>;
 
@@ -333,6 +363,72 @@ begin
   inherited Create;
 
   FIntegerProperty := Param;
+end;
+
+{ TFunctionFactoryTest }
+
+procedure TFunctionFactoryTest.TheConstructorFunctionMustReturnTheInstanceOfTheObjectCreated;
+begin
+  var Factory := TFunctionFactory<TSimpleClass>.Create(
+    function (const Params: TArray<TValue>): TSimpleClass
+    begin
+      Result := TSimpleClass.Create;
+    end) as IFactory;
+
+  var Instance := Factory.Construct(nil);
+
+  Assert.IsNotNull(Instance.AsObject);
+
+  Instance.AsObject.Free;
+end;
+
+procedure TFunctionFactoryTest.TheInstanceCreatedMustBeTheTypeExpected;
+begin
+  var Factory := TFunctionFactory<TSimpleClass>.Create(
+    function (const Params: TArray<TValue>): TSimpleClass
+    begin
+      Result := TSimpleClass.Create;
+    end) as IFactory;
+
+  var Instance := Factory.Construct(nil);
+
+  Assert.AreEqual<TClass>(TSimpleClass, Instance.AsObject.ClassType);
+
+  Instance.AsObject.Free;
+end;
+
+procedure TFunctionFactoryTest.WhenCallTheFactoryConstructorMustPassTheParamsToTheFunction;
+begin
+  var Factory := TFunctionFactory<TSimpleClass>.Create(
+    function (const Params: TArray<TValue>): TSimpleClass
+    begin
+      Assert.AreEqual<NativeInt>(1, Length(Params));
+
+      Assert.AreEqual(25, Params[0].AsInteger);
+
+      Result := TSimpleClass.Create;
+    end) as IFactory;
+
+  var Instance := Factory.Construct([25]);
+
+  Instance.AsObject.Free;
+end;
+
+procedure TFunctionFactoryTest.WhenUseTheFunctionFactoryMustCallThePassedFunctionToFactory;
+begin
+  var CalledFunction := False;
+  var Factory := TFunctionFactory<TSimpleClass>.Create(
+    function (const Params: TArray<TValue>): TSimpleClass
+    begin
+      CalledFunction := True;
+      Result := TSimpleClass.Create;
+    end) as IFactory;
+
+  var Instance := Factory.Construct(nil);
+
+  Instance.AsObject.Free;
+
+  Assert.IsTrue(CalledFunction);
 end;
 
 end.
