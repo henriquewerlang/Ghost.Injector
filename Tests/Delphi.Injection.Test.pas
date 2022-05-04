@@ -44,6 +44,16 @@ type
     * Se os parâmetros não forem iguais, tem que dar erro
     * Se a classe tem derivações, e em algum nível de derivação exitir um construtor, tem que utilizar ele, para não dar o problema do Spring, de utilizar o contrutor do TObject,
       sendo que existe um contrutor em qualquer nível das classes herdadas
+
+  Injeção
+  - Fazer injeção de campos nas classes
+
+  Fábrica
+  - Basicamente, tudo aqui é para encontrar a fábrica de um tipo específico e retornar a instância dele
+  - Quando tentar resolver um tipo, tem que registrar uma fábrica para esse tipo
+    * O registro do nome, por ser o nome qualificado da classe + nome do serviço, se existir (MinhaClass.TMeuTipo-MeuServico)
+    * Talvez colocar no nome de registro, os parâmetros de construção
+      ** O problema disso, seriam as classes, interfaces e records, ou seja, qualquer tipo não nativo. Com isso poderia gerar a mesma assinatura, para construtores diferentes
 }
 
   [TestFixture]
