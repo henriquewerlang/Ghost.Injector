@@ -27,7 +27,12 @@ type
 
   TObjectFactory = class(TInterfacedObject, IFactory)
   private
+    FObjectType: TRttiInstanceType;
+
     function Construct(const Params: TArray<TValue>): TValue;
+    function FindConstructorCandidate(const Params: TArray<TValue>): TRttiMethod;
+  public
+    constructor Create(const RttiType: TRttiInstanceType);
   end;
 
   TInjector = class
@@ -36,7 +41,6 @@ type
 //    FRegisteredType: TDictionary<TRttiType, TList<IFactory>>;
 
     function FindConcreteType(const AType: TRttiType): TRttiType;
-    function FindConstructorCandidate(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
   public
     constructor Create;
 
@@ -45,9 +49,10 @@ type
     function Resolve<T>: T; overload;
     function Resolve<T>(const Params: TArray<TValue>): T; overload;
 
+    procedure RegisterFactory<T: class>(const Factory: T); overload;
     procedure RegisterFactory<T>(const Factory: IFactory); overload;
-    procedure RegisterFactory<T>(const Factory: TFunc<T>); overload;
     procedure RegisterFactory<T>(const Factory: TFactoryFunction<T>); overload;
+    procedure RegisterFactory<T>(const Factory: TFunc<T>); overload;
   end;
 
   TRttiObjectHelper = class helper for TRttiObject
@@ -89,33 +94,17 @@ begin
             Exit(RttiType);
 end;
 
-function TInjector.FindConstructorCandidate(const AType: TRttiType; const Params: TArray<TValue>): TRttiMethod;
-
-  function SameParameters(const AMethod: TRttiMethod): Boolean;
-  begin
-    var Parameters := AMethod.GetParameters;
-    Result := Length(Parameters) = Length(Params);
-
-    if Result then
-      for var A := 0 to High(Params) do
-        if Parameters[A].ParamType.TypeKind <> Params[A].Kind then
-          Exit(False);
-  end;
-
+procedure TInjector.RegisterFactory<T>(const Factory: T);
 begin
-  for var AMethod in AType.GetMethods do
-    if AMethod.IsConstructor and SameParameters(AMethod) then
-      Exit(AMethod);
-
-  raise EConstructorNotFound.Create(AType);
-end;
-
-procedure TInjector.RegisterFactory<T>(const Factory: TFunc<T>);
-begin
-
+//  TObjectFactory.Create(FContext.GetType(T).AsInstance);
 end;
 
 procedure TInjector.RegisterFactory<T>(const Factory: TFactoryFunction<T>);
+begin
+
+end;
+
+procedure TInjector.RegisterFactory<T>(const Factory: TFunc<T>);
 begin
 
 end;
@@ -129,7 +118,7 @@ function TInjector.Resolve<T>(const Params: TArray<TValue>): T;
 begin
   var RttiType := FindConcreteType(FContext.GetType(TypeInfo(T)));
 
-  Result := FindConstructorCandidate(RttiType, Params).Invoke(RttiType.AsInstance.MetaclassType, Params).AsType<T>;
+  Result := TValue.Empty.AsType<T>;
 end;
 
 function TInjector.Resolve<T>: T;
@@ -178,7 +167,34 @@ end;
 
 function TObjectFactory.Construct(const Params: TArray<TValue>): TValue;
 begin
+  var Construcor := FindConstructorCandidate(Params);
+  Result := Construcor.Invoke(FObjectType.MetaclassType, Params).AsObject;
+end;
 
+constructor TObjectFactory.Create(const RttiType: TRttiInstanceType);
+begin
+  FObjectType := RttiType;
+end;
+
+function TObjectFactory.FindConstructorCandidate(const Params: TArray<TValue>): TRttiMethod;
+
+  function SameParameters(const AMethod: TRttiMethod): Boolean;
+  begin
+    var Parameters := AMethod.GetParameters;
+    Result := Length(Parameters) = Length(Params);
+
+    if Result then
+      for var A := 0 to High(Params) do
+        if Parameters[A].ParamType.TypeKind <> Params[A].Kind then
+          Exit(False);
+  end;
+
+begin
+  for var AMethod in FObjectType.GetMethods do
+    if AMethod.IsConstructor and SameParameters(AMethod) then
+      Exit(AMethod);
+
+  raise EConstructorNotFound.Create(FObjectType);
 end;
 
 end.

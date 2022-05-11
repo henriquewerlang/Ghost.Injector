@@ -50,6 +50,7 @@ type
 
   Fábrica
   - Basicamente, tudo aqui é para encontrar a fábrica de um tipo específico e retornar a instância dele
+  - Na fábrica de objetos, tem que permitir utilizar apenas construtores públicos
   - Quando tentar resolver um tipo, tem que registrar uma fábrica para esse tipo
     * O registro do nome, por ser o nome qualificado da classe + nome do serviço, se existir (MinhaClass.TMeuTipo-MeuServico)
     * Talvez colocar no nome de registro, os parâmetros de construção
@@ -106,8 +107,26 @@ type
 
   [TestFixture]
   TObjectFactoryTest = class
+  private
+    FContext: TRttiContext;
   public
-
+    [Setup]
+    procedure Setup;
+    [Test]
+    procedure WhenCallTheConstructMustCreateTheClassInsideTheFactory;
+    [Test]
+    procedure WhenTheClassHasAConstrutorMustCallThisConstructorOnTheFactory;
+    [Test]
+    procedure WhenTheClassConstructorHasParamsThisParamsMustBePassedInTheInvokerOfTheConstuctor;
+    [TestCase('No param', '123,abc')]
+    [TestCase('One param', '456,abc,456')]
+    [TestCase('Two params', '789,def,789,def')]
+    procedure WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheCountOfTheParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
+    [Test]
+    procedure WhenCantFindAConstructorMustRaiseAnError;
+    [TestCase('String param', '0,abc')]
+    [TestCase('Integer param', '123,')]
+    procedure WhenTheClassHasMoreThenOneContructorWithSameQuantityOfParamsMustSelectTheConstructorByTheParamType(const IntegerParam: Integer; const StringParam: String);
   end;
 
   TSimpleClass = class
@@ -190,6 +209,8 @@ end;
 procedure TInjectorTest.Setup;
 begin
   FInjector := TInjector.Create;
+
+  TMock.CreateInterface<IFactory>;
 end;
 
 procedure TInjectorTest.SetupFixture;
@@ -224,11 +245,15 @@ end;
 
 procedure TInjectorTest.WhenRegisterAFactoryMustUseTheFactoryToCreateTheResolvedObject;
 begin
-//  var Factory := TMock.CreateInterface<IFactory>;
-//
-//  Factory.Expect.Once.When.Construct;
-//
-//  FInjector.RegisterFactory<IMyInterface>(Factory.Instance);
+  var Factory := TMock.CreateInterface<IFactory>;
+
+  Factory.Expect.Once.When.Construct(It.IsAny<TArray<TValue>>);
+
+  FInjector.RegisterFactory<IMyInterface>(Factory.Instance);
+
+  FInjector.Resolve<IMyInterface>;
+
+  Assert.CheckExpectation(Factory.CheckExpectations);
 end;
 
 procedure TInjectorTest.WhenResolveAnClassMustCreateTheClassAndReturnTheInstance;
@@ -439,6 +464,110 @@ begin
   Instance.AsObject.Free;
 
   Assert.IsTrue(CalledFunction);
+end;
+
+{ TObjectFactoryTest }
+
+procedure TObjectFactoryTest.Setup;
+begin
+  FContext := TRttiContext.Create;
+end;
+
+procedure TObjectFactoryTest.WhenCallTheConstructMustCreateTheClassInsideTheFactory;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TSimpleClass).AsInstance) as IFactory;
+  var TheObject := Factory.Construct(nil).AsObject;
+
+  Assert.IsNotNull(TheObject);
+
+  TheObject.Free;
+end;
+
+procedure TObjectFactoryTest.WhenCantFindAConstructorMustRaiseAnError;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TSimpleClass).AsInstance) as IFactory;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Factory.Construct([123]);
+    end);
+end;
+
+procedure TObjectFactoryTest.WhenTheClassConstructorHasParamsThisParamsMustBePassedInTheInvokerOfTheConstuctor;
+begin
+  var AnObject := TObject.Create;
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithParamsInConstructor).AsInstance) as IFactory;
+  var TheObject := Factory.Construct([AnObject, 1234]).AsType<TClassWithParamsInConstructor>;
+
+  Assert.IsNotNull(TheObject);
+
+  Assert.AreEqual(AnObject, TheObject.Param1);
+
+  Assert.AreEqual(1234, TheObject.Param2);
+
+  AnObject.Free;
+
+  TheObject.Free;
+end;
+
+procedure TObjectFactoryTest.WhenTheClassHasAConstrutorMustCallThisConstructorOnTheFactory;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithConstructor).AsInstance) as IFactory;
+  var TheObject := Factory.Construct(nil).AsType<TClassWithConstructor>;
+
+  Assert.IsTrue(TheObject.TheConstructorCalled);
+
+  TheObject.Free;
+end;
+
+procedure TObjectFactoryTest.WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheCountOfTheParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithThreeContructors).AsInstance) as IFactory;
+  var Params: TArray<TValue> := nil;
+
+  if ParamValue1 > 0 then
+  begin
+    SetLength(Params, 1);
+    Params[0] := ParamValue1;
+  end;
+
+  if not ParamValue2.IsEmpty then
+  begin
+    SetLength(Params, 2);
+    Params[1] := ParamValue2;
+  end;
+
+  var AClass := Factory.Construct(Params).AsType<TClassWithThreeContructors>;
+
+  Assert.IsNotNull(AClass);
+
+  Assert.AreEqual(ExpectParam1, AClass.Param1);
+
+  Assert.AreEqual(ExpectParam2, AClass.Param2);
+
+  AClass.Free;
+end;
+
+procedure TObjectFactoryTest.WhenTheClassHasMoreThenOneContructorWithSameQuantityOfParamsMustSelectTheConstructorByTheParamType(const IntegerParam: Integer; const StringParam: String);
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithConstructorWithTheSameParameterCount).AsInstance) as IFactory;
+  var Param: TValue;
+
+  if IntegerParam > 0 then
+    Param := IntegerParam
+  else
+    Param := StringParam;
+
+  var AClass := Factory.Construct([Param]).AsType<TClassWithConstructorWithTheSameParameterCount>;
+
+  Assert.IsNotNull(AClass);
+
+  Assert.AreEqual(IntegerParam, AClass.IntegerProperty);
+
+  Assert.AreEqual(StringParam, AClass.StringProperty);
+
+  AClass.Free;
 end;
 
 end.
