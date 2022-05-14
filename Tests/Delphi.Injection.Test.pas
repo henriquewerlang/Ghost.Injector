@@ -69,27 +69,17 @@ type
     [TearDown]
     procedure TearDown;
     [Test]
-    procedure WhenResolveAnClassMustCreateTheClassAndReturnTheInstance;
+    procedure WhenRegisterAFunctionFactoryMustUseThisFactoryToCreateTheObject;
     [Test]
-    procedure WhenTheClassHasItsOwnContrutctorThisMustBeCalledInTheResolver;
+    procedure WhenRegisterAFunctionFactoryWithParamsMustUseThisFunctionToCreateTheObject;
     [Test]
-    procedure WhenTheContructorHasParamsAndTheParamIsPassedInTheResolverMustCreateTheClassWithThisParams;
-    [TestCase('No param', '123,abc')]
-    [TestCase('One param', '456,abc,456')]
-    [TestCase('Two params', '789,def,789,def')]
-    procedure WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheTypeOfThePassedParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
+    procedure TheResolveFunctionMustReturnTheInstanceOfTheObjectWhenCalled;
     [Test]
-    procedure WhenAClassDoesntHaveAConstructorMustCreateTheClassFromTheBaseClassConstructor;
+    procedure WhenResolveATypeWithParamsMustReturnTheInstanceOfTheObject;
     [Test]
-    procedure WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor;
+    procedure WhenRegisterAnInstanceFactoryMustReturnThisInstanceWhenResolveTheObject;
     [Test]
-    procedure WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor2;
-    [Test]
-    procedure IfCantFindTheConstructorMustToRaiseAnError;
-    [Test]
-    procedure WhenTryToResolveAnInterfaceMustLocateTheClassThatImplementsAndCreateTheClass;
-    [Test]
-    procedure WhenRegisterAFactoryMustUseTheFactoryToCreateTheResolvedObject;
+    procedure WhenRegisterAFactoryInterfaceMustUseThisInterfaceToCreateTheObject;
   end;
 
   [TestFixture]
@@ -127,6 +117,13 @@ type
     [TestCase('String param', '0,abc')]
     [TestCase('Integer param', '123,')]
     procedure WhenTheClassHasMoreThenOneContructorWithSameQuantityOfParamsMustSelectTheConstructorByTheParamType(const IntegerParam: Integer; const StringParam: String);
+  end;
+
+  [TestFixture]
+  TInstanceFactoryTest = class
+  public
+    [Test]
+    procedure WhenCallTheFactoryConstructorMustReturnTheInstanceOfTheClass;
   end;
 
   TSimpleClass = class
@@ -197,15 +194,6 @@ uses System.TypInfo, System.SysUtils, Delphi.Mock;
 
 { TInjectorTest }
 
-procedure TInjectorTest.IfCantFindTheConstructorMustToRaiseAnError;
-begin
-  Assert.WillRaise(
-    procedure
-    begin
-      FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>([123.123]);
-    end, EConstructorNotFound);
-end;
-
 procedure TInjectorTest.Setup;
 begin
   FInjector := TInjector.Create;
@@ -232,32 +220,14 @@ begin
   FInjector.Free;
 end;
 
-procedure TInjectorTest.WhenAClassDoesntHaveAConstructorMustCreateTheClassFromTheBaseClassConstructor;
+procedure TInjectorTest.TheResolveFunctionMustReturnTheInstanceOfTheObjectWhenCalled;
 begin
-  var AClass := FInjector.Resolve<TClassInheritedWithoutConstructor>;
+  FInjector.RegisterFactory<TSimpleClass>(
+    function: TSimpleClass
+    begin
+      Result := TSimpleClass.Create;
+    end);
 
-  Assert.IsNotNull(AClass);
-
-  Assert.AreEqual(0, AClass.EmptyProperty);
-
-  AClass.Free;
-end;
-
-procedure TInjectorTest.WhenRegisterAFactoryMustUseTheFactoryToCreateTheResolvedObject;
-begin
-  var Factory := TMock.CreateInterface<IFactory>;
-
-  Factory.Expect.Once.When.Construct(It.IsAny<TArray<TValue>>);
-
-  FInjector.RegisterFactory<IMyInterface>(Factory.Instance);
-
-  FInjector.Resolve<IMyInterface>;
-
-  Assert.CheckExpectation(Factory.CheckExpectations);
-end;
-
-procedure TInjectorTest.WhenResolveAnClassMustCreateTheClassAndReturnTheInstance;
-begin
   var AClass := FInjector.Resolve<TSimpleClass>;
 
   Assert.IsNotNull(AClass);
@@ -265,84 +235,75 @@ begin
   AClass.Free;
 end;
 
-procedure TInjectorTest.WhenTheClassHasItsOwnContrutctorThisMustBeCalledInTheResolver;
+procedure TInjectorTest.WhenRegisterAFactoryInterfaceMustUseThisInterfaceToCreateTheObject;
 begin
-  var AClass := FInjector.Resolve<TClassWithConstructor>;
+  var AFactory := TMock.CreateInterface<IFactory>(True);
+
+  AFactory.Expect.Once.When.Construct(It.IsAny<TArray<TValue>>);
+
+  FInjector.RegisterFactory<TSimpleClass>(AFactory.Instance);
+
+  FInjector.Resolve<TSimpleClass>;
+
+  Assert.CheckExpectation(AFactory.CheckExpectations);
+end;
+
+procedure TInjectorTest.WhenRegisterAFunctionFactoryMustUseThisFactoryToCreateTheObject;
+begin
+  var FunctionCalled := False;
+
+  FInjector.RegisterFactory<TSimpleClass>(
+    function: TSimpleClass
+    begin
+      FunctionCalled := True;
+      Result := nil;
+    end);
+
+  FInjector.Resolve<TSimpleClass>;
+
+  Assert.IsTrue(FunctionCalled);
+end;
+
+procedure TInjectorTest.WhenRegisterAFunctionFactoryWithParamsMustUseThisFunctionToCreateTheObject;
+begin
+  var FunctionCalled := False;
+
+  FInjector.RegisterFactory<TSimpleClass>(
+    function (const Params: TArray<TValue>): TSimpleClass
+    begin
+      FunctionCalled := (Length(Params) = 1) and (Params[0].AsInteger = 1234);
+      Result := nil;
+    end);
+
+  FInjector.Resolve<TSimpleClass>([1234]);
+
+  Assert.IsTrue(FunctionCalled);
+end;
+
+procedure TInjectorTest.WhenRegisterAnInstanceFactoryMustReturnThisInstanceWhenResolveTheObject;
+begin
+  var AClass := TSimpleClass.Create;
+
+  FInjector.RegisterFactory(AClass);
+
+  var TheObject := FInjector.Resolve<TSimpleClass>;
+
+  Assert.AreEqual(AClass, TheObject);
+end;
+
+procedure TInjectorTest.WhenResolveATypeWithParamsMustReturnTheInstanceOfTheObject;
+begin
+  FInjector.RegisterFactory<TSimpleClass>(
+    function: TSimpleClass
+    begin
+      Result := TSimpleClass.Create;
+    end);
+
+  var AClass := FInjector.Resolve<TSimpleClass>([1234]);
 
   Assert.IsNotNull(AClass);
 
-  Assert.IsTrue(AClass.TheConstructorCalled);
-
   AClass.Free;
-end;
-
-procedure TInjectorTest.WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheTypeOfThePassedParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
-begin
-  var Params: TArray<TValue> := nil;
-
-  if ParamValue1 > 0 then
-  begin
-    SetLength(Params, 1);
-    Params[0] := ParamValue1;
-  end;
-
-  if not ParamValue2.IsEmpty then
-  begin
-    SetLength(Params, 2);
-    Params[1] := ParamValue2;
-  end;
-
-  var AClass := FInjector.Resolve<TClassWithThreeContructors>(Params);
-
-  Assert.IsNotNull(AClass);
-
-  Assert.AreEqual(ExpectParam1, AClass.Param1);
-
-  Assert.AreEqual(ExpectParam2, AClass.Param2);
-
-  AClass.Free;
-end;
-
-procedure TInjectorTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor;
-begin
-  var AClass := FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>(['abc']);
-
-  Assert.AreEqual('abc', AClass.StringProperty);
-
-  AClass.Free;
-end;
-
-procedure TInjectorTest.WhenTheConstructorsOfTheClassHasTheSameParamCountMustCreateTheClassByTheSignatureOfTypeOfTheParamsOfTheConstructor2;
-begin
-  var AClass := FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>([123]);
-
-  Assert.AreEqual(123, AClass.IntegerProperty);
-
-  AClass.Free;
-end;
-
-procedure TInjectorTest.WhenTheContructorHasParamsAndTheParamIsPassedInTheResolverMustCreateTheClassWithThisParams;
-begin
-  var ObjectParam := TObject.Create;
-
-  var AClass := FInjector.Resolve<TClassWithParamsInConstructor>([ObjectParam, 1234]);
-
-  Assert.IsNotNull(AClass);
-
-  Assert.AreEqual(ObjectParam, AClass.Param1);
-
-  Assert.AreEqual(1234, AClass.Param2);
-
-  AClass.Free;
-
-  ObjectParam.Free;
-end;
-
-procedure TInjectorTest.WhenTryToResolveAnInterfaceMustLocateTheClassThatImplementsAndCreateTheClass;
-begin
-  var MyInterface := FInjector.Resolve<IMyInterface>;
-
-  Assert.IsNotNull(MyInterface);
 end;
 
 { TClassWithConstructor }
@@ -404,8 +365,8 @@ end;
 
 procedure TFunctionFactoryTest.TheConstructorFunctionMustReturnTheInstanceOfTheObjectCreated;
 begin
-  var Factory := TFunctionFactory<TSimpleClass>.Create(
-    function (const Params: TArray<TValue>): TSimpleClass
+  var Factory := TFunctionFactory.Create(
+    function (const Params: TArray<TValue>): TValue
     begin
       Result := TSimpleClass.Create;
     end) as IFactory;
@@ -419,8 +380,8 @@ end;
 
 procedure TFunctionFactoryTest.TheInstanceCreatedMustBeTheTypeExpected;
 begin
-  var Factory := TFunctionFactory<TSimpleClass>.Create(
-    function (const Params: TArray<TValue>): TSimpleClass
+  var Factory := TFunctionFactory.Create(
+    function (const Params: TArray<TValue>): TValue
     begin
       Result := TSimpleClass.Create;
     end) as IFactory;
@@ -434,8 +395,8 @@ end;
 
 procedure TFunctionFactoryTest.WhenCallTheFactoryConstructorMustPassTheParamsToTheFunction;
 begin
-  var Factory := TFunctionFactory<TSimpleClass>.Create(
-    function (const Params: TArray<TValue>): TSimpleClass
+  var Factory := TFunctionFactory.Create(
+    function (const Params: TArray<TValue>): TValue
     begin
       Assert.AreEqual<NativeInt>(1, Length(Params));
 
@@ -452,8 +413,8 @@ end;
 procedure TFunctionFactoryTest.WhenUseTheFunctionFactoryMustCallThePassedFunctionToFactory;
 begin
   var CalledFunction := False;
-  var Factory := TFunctionFactory<TSimpleClass>.Create(
-    function (const Params: TArray<TValue>): TSimpleClass
+  var Factory := TFunctionFactory.Create(
+    function (const Params: TArray<TValue>): TValue
     begin
       CalledFunction := True;
       Result := TSimpleClass.Create;
@@ -568,6 +529,17 @@ begin
   Assert.AreEqual(StringParam, AClass.StringProperty);
 
   AClass.Free;
+end;
+
+{ TInstanceFactoryTest }
+
+procedure TInstanceFactoryTest.WhenCallTheFactoryConstructorMustReturnTheInstanceOfTheClass;
+begin
+  var AClass := TSimpleClass.Create;
+  var AFactory := TInstanceFactory.Create(AClass) as IFactory;
+  var TheObject := AFactory.Construct(nil).AsType<TSimpleClass>;
+
+  Assert.AreEqual(AClass, TheObject);
 end;
 
 end.

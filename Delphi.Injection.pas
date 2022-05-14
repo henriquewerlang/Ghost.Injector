@@ -16,13 +16,13 @@ type
     function Construct(const Params: TArray<TValue>): TValue;
   end;
 
-  TFunctionFactory<T> = class(TInterfacedObject, IFactory)
+  TFunctionFactory = class(TInterfacedObject, IFactory)
   private
-    FFactoryFunction: TFactoryFunction<T>;
+    FFactoryFunction: TFactoryFunction<TValue>;
 
     function Construct(const Params: TArray<TValue>): TValue;
   public
-    constructor Create(const FactoryFunction: TFactoryFunction<T>);
+    constructor Create(const FactoryFunction: TFactoryFunction<TValue>);
   end;
 
   TObjectFactory = class(TInterfacedObject, IFactory)
@@ -35,12 +35,28 @@ type
     constructor Create(const RttiType: TRttiInstanceType);
   end;
 
+  TInterfaceFactory = class(TInterfacedObject, IFactory)
+  private
+//    FFactory: IFactory;
+//
+    function Construct(const Params: TArray<TValue>): TValue;
+  end;
+
+  TInstanceFactory = class(TInterfacedObject, IFactory)
+  private
+    FInstance: TObject;
+
+    function Construct(const Params: TArray<TValue>): TValue;
+  public
+    constructor Create(const Instance: TObject);
+  end;
+
   TInjector = class
   private
     FContext: TRttiContext;
-//    FRegisteredType: TDictionary<TRttiType, TList<IFactory>>;
+    FRegisteredTypes: TDictionary<TRttiType, TList<IFactory>>;
 
-    function FindConcreteType(const AType: TRttiType): TRttiType;
+    procedure RegisterFactory(const AType: TRttiStructuredType; const Factory: IFactory); overload;
   public
     constructor Create;
 
@@ -73,52 +89,60 @@ begin
   inherited;
 
   FContext := TRttiContext.Create;
+  FRegisteredTypes := TObjectDictionary<TRttiType, TList<IFactory>>.Create([doOwnsValues]);
 end;
 
 destructor TInjector.Destroy;
 begin
   FContext.Free;
 
+  FRegisteredTypes.Free;
+
   inherited;
-end;
-
-function TInjector.FindConcreteType(const AType: TRttiType): TRttiType;
-begin
-  Result := AType;
-
-  if Result.IsInterface then
-    for var RttiType in FContext.GetTypes do
-      if RttiType.IsInstance then
-        for var InterfaceImplementation in RttiType.AsInstance.GetDeclaredImplementedInterfaces do
-          if InterfaceImplementation = AType then
-            Exit(RttiType);
 end;
 
 procedure TInjector.RegisterFactory<T>(const Factory: T);
 begin
-//  TObjectFactory.Create(FContext.GetType(T).AsInstance);
+  RegisterFactory<T>(TInstanceFactory.Create(Factory) as IFactory);
 end;
 
 procedure TInjector.RegisterFactory<T>(const Factory: TFactoryFunction<T>);
 begin
+  RegisterFactory<T>(
+    TFunctionFactory.Create(
+      function (const Args: TArray<TValue>): TValue
+      begin
+        Result := TValue.From(Factory(Args));
+      end));
+end;
 
+procedure TInjector.RegisterFactory(const AType: TRttiStructuredType; const Factory: IFactory);
+begin
+  var List := TList<IFactory>.Create;
+
+  List.Add(Factory);
+
+  FRegisteredTypes.Add(AType, List);
 end;
 
 procedure TInjector.RegisterFactory<T>(const Factory: TFunc<T>);
 begin
-
+  RegisterFactory<T>(
+    TFunctionFactory.Create(
+      function (const Args: TArray<TValue>): TValue
+      begin
+        Result := TValue.From(Factory());
+      end));
 end;
 
 procedure TInjector.RegisterFactory<T>(const Factory: IFactory);
 begin
-
+  RegisterFactory(FContext.GetType(TypeInfo(T)) as TRttiStructuredType, Factory);
 end;
 
 function TInjector.Resolve<T>(const Params: TArray<TValue>): T;
 begin
-  var RttiType := FindConcreteType(FContext.GetType(TypeInfo(T)));
-
-  Result := TValue.Empty.AsType<T>;
+  Result := FRegisteredTypes[FContext.GetType(TypeInfo(T))][0].Construct(Params).AsType<T>;
 end;
 
 function TInjector.Resolve<T>: T;
@@ -149,14 +173,14 @@ begin
   inherited CreateFmt('Constructor not found to the type %s!', [AType.QualifiedName]);
 end;
 
-{ TFunctionFactory<T> }
+{ TFunctionFactory }
 
-function TFunctionFactory<T>.Construct(const Params: TArray<TValue>): TValue;
+function TFunctionFactory.Construct(const Params: TArray<TValue>): TValue;
 begin
-  Result := TValue.From<T>(FFactoryFunction(Params));
+  Result := FFactoryFunction(Params);
 end;
 
-constructor TFunctionFactory<T>.Create(const FactoryFunction: TFactoryFunction<T>);
+constructor TFunctionFactory.Create(const FactoryFunction: TFactoryFunction<TValue>);
 begin
   inherited Create;
 
@@ -195,6 +219,27 @@ begin
       Exit(AMethod);
 
   raise EConstructorNotFound.Create(FObjectType);
+end;
+
+{ TInterfaceFactory }
+
+function TInterfaceFactory.Construct(const Params: TArray<TValue>): TValue;
+begin
+
+end;
+
+{ TInstanceFactory }
+
+function TInstanceFactory.Construct(const Params: TArray<TValue>): TValue;
+begin
+  Result := FInstance;
+end;
+
+constructor TInstanceFactory.Create(const Instance: TObject);
+begin
+  inherited Create;
+
+  FInstance := Instance;
 end;
 
 end.
