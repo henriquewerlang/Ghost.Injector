@@ -6,55 +6,41 @@ uses DUnitX.TestFramework, System.Rtti, Delphi.Injection, System.Classes;
 
 type
 {
-  Testes a serem feitos:
-  - Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe
-  - Lançar um erro quando não encontrar todos os parâmetros do construtor da classe
-  - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
-  - Se no nível atual não tiver um construtor tem que ir para a base da classe, e assim por diante até encontrar o construtor do TObject
-    * Tem que verificar se a classe sendo contruída tem construtor, se tiver e não conseguir construir tem que dar erro
-    * Isso tem que ocorrer em todos os níveis, salvo, não encontrar contrutor me nível nenhum
-  - Se tentar resolver um interface, tem que buscar na lista de tipos, qual implementa essa classe e construir a mesma
+  Injetor
   - Injetar campos das classes, isso tem que ser via anotação
-  - Permitir registrar construtores para os tipos, afim de permitir o programador decidir como a instância deve ser gerada
-  - Controle de ciclo de vida do objecto (Singleton, Thread, etc...)
-    * Ideia, quando o ciclo de vida por por thread, quando for requisitado para resolver algum valor dentro de um thread, abrir um outra thread que chama o WaitFor da thread corrente, e quando terminar, elimina
-    as váriaveis criadas nessa thread
-  - Limitar os tipos resolviveis á classes, interfaces e records?
-    * Acredito que sim, por que os tipos nativos, não tem por que serem resolvidos, e no caso do records, apenas os campos podem ser resolvidos
-  - Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo
-  - Criar função de registro de tipo com uma fábrica de objetos
   - Registrar serviços nomeados para serem utilizados por nome depois
-  - Como definir qual objeto derivado utilizar no construtor?
-    * Provavelmente terei que utilizar anotações por não saber qual escolher
-    * Mesmo assim pode existir mais de uma opção, mas resolver o problema do parâmetro se uma classe base
+  - Quando tentar resolver um tipo, tem que registrar uma fábrica para esse tipo
+    * O registro do nome, por ser o nome qualificado da classe + nome do serviço, se existir (MinhaClass.TMeuTipo-MeuServico)
+    * Talvez colocar no nome de registro, os parâmetros de construção
+      ** O problema disso, seriam as classes, interfaces e records, ou seja, qualquer tipo não nativo. Com isso poderia gerar a mesma assinatura, para construtores diferentes
+  - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
+  - Criar um esquema de construção atrasado, como um LazyFactory
+    * Como foi feito no ORM para valores, mas nesse caso é para construir o objeto concreto
 
-  Construindo uma interface
+  Fábrica de interface
+  - Tem que localizar os tipos concretos, o qual implementam essa classe e registrar para construir a mesma com essa classe
   - Localizar uma classe que implementa ela
     * Tem que verificar se as classes encontradas tem alguma anotação de nome de serviço. Se tiver, verificar se o parâmetro e nome de serviço fecha. Se encontrar mais de uma
       fechando os critérios, por nome de serviço ou padrão, tem que dar erro
   - Por uma anotação de qual classe deve ser criada
     * Teria que ser o nome, senão teria problema de referência circular
-  - Por um fábrica de objetos, que implementem essa interface
-    * Uma função fornecida pelo programdor para criar esse tipo de classe
-  - A busca completa é muito lenta, verificar uma forma de armazenar um registro disso
 
-  Contruindo uma class
+  Fábrica de objeto
+  - Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo
+  - Se no nível atual não tiver um construtor tem que ir para a base da classe, e assim por diante até encontrar o construtor do TObject
+    * Tem que verificar se a classe sendo contruída tem construtor, se tiver e não conseguir construir tem que dar erro
+    * Isso tem que ocorrer em todos os níveis, salvo, não encontrar contrutor me nível nenhum
+  - Lançar um erro quando não encontrar todos os parâmetros do construtor da classe
+  - Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe
+  - Como definir qual objeto derivado utilizar no construtor?
+    * Provavelmente terei que utilizar anotações por não saber qual escolher
+    * Mesmo assim pode existir mais de uma opção, mas resolver o problema do parâmetro se uma classe base
   - Tem localizar os contrutores da própria classe
   - Senão encontrar contrutores na própria classe, tem que ir descendo os níveis, no primeiro que encontrar, tem que utilizar algum contrutor desse nível
     * Se os parâmetros não forem iguais, tem que dar erro
     * Se a classe tem derivações, e em algum nível de derivação exitir um construtor, tem que utilizar ele, para não dar o problema do Spring, de utilizar o contrutor do TObject,
       sendo que existe um contrutor em qualquer nível das classes herdadas
-
-  Injeção
-  - Fazer injeção de campos nas classes
-
-  Fábrica
-  - Basicamente, tudo aqui é para encontrar a fábrica de um tipo específico e retornar a instância dele
   - Na fábrica de objetos, tem que permitir utilizar apenas construtores públicos
-  - Quando tentar resolver um tipo, tem que registrar uma fábrica para esse tipo
-    * O registro do nome, por ser o nome qualificado da classe + nome do serviço, se existir (MinhaClass.TMeuTipo-MeuServico)
-    * Talvez colocar no nome de registro, os parâmetros de construção
-      ** O problema disso, seriam as classes, interfaces e records, ou seja, qualquer tipo não nativo. Com isso poderia gerar a mesma assinatura, para construtores diferentes
 }
 
   [TestFixture]
@@ -80,6 +66,14 @@ type
     procedure WhenRegisterAnInstanceFactoryMustReturnThisInstanceWhenResolveTheObject;
     [Test]
     procedure WhenRegisterAFactoryInterfaceMustUseThisInterfaceToCreateTheObject;
+    [Test]
+    procedure WhenRegisterAClassFactoryMustRegisterAFactoryToThisType;
+    [Test]
+    procedure WhenDonotFindATypeRegisteredMustRaiseAnError;
+    [Test]
+    procedure WhenTryToResolveATypeNotRegisteredMustFindItInTheRttiAndResolveTheType;
+    [Test]
+    procedure WhenTryToResolveAnInterfaceNotRegisteredMustFindInTheTypeInRttiAndResolveTheType;
   end;
 
   [TestFixture]
@@ -188,6 +182,12 @@ type
   TMyObjectInterface = class(TInterfacedObject, IMyInterface)
   end;
 
+  {$M-}
+  TClassNotRegistered = class
+
+  end;
+  {$M+}
+
 implementation
 
 uses System.TypInfo, System.SysUtils, Delphi.Mock;
@@ -227,6 +227,29 @@ begin
     begin
       Result := TSimpleClass.Create;
     end);
+
+  var AClass := FInjector.Resolve<TSimpleClass>;
+
+  Assert.IsNotNull(AClass);
+
+  AClass.Free;
+end;
+
+procedure TInjectorTest.WhenDonotFindATypeRegisteredMustRaiseAnError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.Resolve<TClassNotRegistered>;
+
+      // Vou deixar assim, para o teste passar, por que a princípios o linkador não remove as classes
+      raise ETypeFactoryNotRegistered.Create;
+    end, ETypeFactoryNotRegistered);
+end;
+
+procedure TInjectorTest.WhenRegisterAClassFactoryMustRegisterAFactoryToThisType;
+begin
+  FInjector.RegisterFactory<TSimpleClass>;
 
   var AClass := FInjector.Resolve<TSimpleClass>;
 
@@ -304,6 +327,28 @@ begin
   Assert.IsNotNull(AClass);
 
   AClass.Free;
+end;
+
+procedure TInjectorTest.WhenTryToResolveAnInterfaceNotRegisteredMustFindInTheTypeInRttiAndResolveTheType;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      var AnInterface := FInjector.Resolve<IMyInterface>;
+
+      AnInterface := nil;
+    end);
+end;
+
+procedure TInjectorTest.WhenTryToResolveATypeNotRegisteredMustFindItInTheRttiAndResolveTheType;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      var AClass := FInjector.Resolve<TSimpleClass>;
+
+      AClass.Free;
+    end);
 end;
 
 { TClassWithConstructor }
