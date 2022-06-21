@@ -8,11 +8,6 @@ type
 {
   Injetor
   - Injetar campos das classes, isso tem que ser via anotação
-  - Registrar serviços nomeados para serem utilizados por nome depois
-  - Quando tentar resolver um tipo, tem que registrar uma fábrica para esse tipo
-    * O registro do nome, por ser o nome qualificado da classe + nome do serviço, se existir (MinhaClass.TMeuTipo-MeuServico)
-    * Talvez colocar no nome de registro, os parâmetros de construção
-      ** O problema disso, seriam as classes, interfaces e records, ou seja, qualquer tipo não nativo. Com isso poderia gerar a mesma assinatura, para construtores diferentes
   - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
   - Criar um esquema de construção atrasado, como um LazyFactory
     * Como foi feito no ORM para valores, mas nesse caso é para construir o objeto concreto
@@ -29,11 +24,12 @@ type
   - Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo
   - Se no nível atual não tiver um construtor tem que ir para a base da classe, e assim por diante até encontrar o construtor do TObject
     * Tem que verificar se a classe sendo contruída tem construtor, se tiver e não conseguir construir tem que dar erro
-    * Isso tem que ocorrer em todos os níveis, salvo, não encontrar contrutor me nível nenhum
+    * Isso tem que ocorrer em todos os níveis, salvo, não encontrar contrutor em nível nenhum
   - Lançar um erro quando não encontrar todos os parâmetros do construtor da classe
   - Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe
   - Como definir qual objeto derivado utilizar no construtor?
     * Provavelmente terei que utilizar anotações por não saber qual escolher
+      ** Péssima ideia, é mais provavel mandar resolver o tipo que precisa, e passar para o resolvedor
     * Mesmo assim pode existir mais de uma opção, mas resolver o problema do parâmetro se uma classe base
   - Tem localizar os contrutores da própria classe
   - Senão encontrar contrutores na própria classe, tem que ir descendo os níveis, no primeiro que encontrar, tem que utilizar algum contrutor desse nível
@@ -74,6 +70,20 @@ type
     procedure WhenTryToResolveATypeNotRegisteredMustFindItInTheRttiAndResolveTheType;
     [Test]
     procedure WhenTryToResolveAnInterfaceNotRegisteredMustFindInTheTypeInRttiAndResolveTheType;
+    [Test]
+    procedure WhenTryToRegisterTheSameFactoryMoreThenOnceCannnotRaiseAnyError;
+    [Test]
+    procedure WhenRegisterATypeNamedFactoryMustUseTheNamedFactoryToCreateTheType;
+    [Test]
+    procedure WhenRegisterAnInstanceNamedFactoryMustUseThisFactoryToResolveTheType;
+    [Test]
+    procedure WhenRegisterANamedFunctionFactoryMustUseThisFactoryToResolveTheType;
+    [Test]
+    procedure WhenRegisterANamedFunctionFactoryWithParamsMustUseThisFactoryToResolveTheType;
+    [Test]
+    procedure WhenFindMoreThenOneFactoryForATypeMustRaiseError;
+    [Test]
+    procedure WhenResolveAnInterfaceMustReturnTheInterfaceInstanceLoaded;
   end;
 
   [TestFixture]
@@ -118,6 +128,13 @@ type
   public
     [Test]
     procedure WhenCallTheFactoryConstructorMustReturnTheInstanceOfTheClass;
+  end;
+
+  [TestFixture]
+  TInterfaceFactoryTest = class
+  public
+    [Test]
+    procedure WhenConstructTheInterfaceMustLocateTheObjectThatImplementsTheInterface;
   end;
 
   TSimpleClass = class
@@ -247,6 +264,21 @@ begin
     end, ETypeFactoryNotRegistered);
 end;
 
+procedure TInjectorTest.WhenFindMoreThenOneFactoryForATypeMustRaiseError;
+begin
+  FInjector.RegisterFactory<TSimpleClass>;
+
+  FInjector.RegisterFactory<TSimpleClass>;
+
+  FInjector.RegisterFactory<TSimpleClass>;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.Resolve<TSimpleClass>;
+    end, EFoundMoreThenOneFactory);
+end;
+
 procedure TInjectorTest.WhenRegisterAClassFactoryMustRegisterAFactoryToThisType;
 begin
   FInjector.RegisterFactory<TSimpleClass>;
@@ -303,6 +335,38 @@ begin
   Assert.IsTrue(FunctionCalled);
 end;
 
+procedure TInjectorTest.WhenRegisterANamedFunctionFactoryMustUseThisFactoryToResolveTheType;
+begin
+  var FunctionCalled := False;
+
+  FInjector.RegisterFactory<TSimpleClass>('MyFactory',
+    function: TSimpleClass
+    begin
+      FunctionCalled := True;
+      Result := nil;
+    end);
+
+  FInjector.Resolve<TSimpleClass>('MyFactory');
+
+  Assert.IsTrue(FunctionCalled);
+end;
+
+procedure TInjectorTest.WhenRegisterANamedFunctionFactoryWithParamsMustUseThisFactoryToResolveTheType;
+begin
+  var FunctionCalled := False;
+
+  FInjector.RegisterFactory<TSimpleClass>('MyFactory',
+    function(const Params: TArray<TValue>): TSimpleClass
+    begin
+      FunctionCalled := True;
+      Result := nil;
+    end);
+
+  FInjector.Resolve<TSimpleClass>('MyFactory');
+
+  Assert.IsTrue(FunctionCalled);
+end;
+
 procedure TInjectorTest.WhenRegisterAnInstanceFactoryMustReturnThisInstanceWhenResolveTheObject;
 begin
   var AClass := TSimpleClass.Create;
@@ -312,6 +376,39 @@ begin
   var TheObject := FInjector.Resolve<TSimpleClass>;
 
   Assert.AreEqual(AClass, TheObject);
+end;
+
+procedure TInjectorTest.WhenRegisterAnInstanceNamedFactoryMustUseThisFactoryToResolveTheType;
+begin
+  var AClass := TSimpleClass.Create;
+
+  FInjector.RegisterFactory('MyFactory', AClass);
+
+  var TheObject := FInjector.Resolve<TSimpleClass>('MyFactory');
+
+  Assert.AreEqual(AClass, TheObject);
+end;
+
+procedure TInjectorTest.WhenRegisterATypeNamedFactoryMustUseTheNamedFactoryToCreateTheType;
+begin
+  FInjector.RegisterFactory<TSimpleClass>('MyFactory');
+
+  var AClass := FInjector.Resolve<TSimpleClass>('MyFactory');
+
+  Assert.IsNotNull(AClass);
+
+  AClass.Free;
+end;
+
+procedure TInjectorTest.WhenResolveAnInterfaceMustReturnTheInterfaceInstanceLoaded;
+begin
+  FInjector.RegisterFactory<IMyInterface>;
+
+  var MyInterface := FInjector.Resolve<IMyInterface>;
+
+  Assert.IsNotNull(MyInterface);
+
+  MyInterface := nil;
 end;
 
 procedure TInjectorTest.WhenResolveATypeWithParamsMustReturnTheInstanceOfTheObject;
@@ -329,6 +426,19 @@ begin
   AClass.Free;
 end;
 
+procedure TInjectorTest.WhenTryToRegisterTheSameFactoryMoreThenOnceCannnotRaiseAnyError;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FInjector.RegisterFactory<TSimpleClass>;
+
+      FInjector.RegisterFactory<TSimpleClass>;
+
+      FInjector.RegisterFactory<TSimpleClass>;
+    end);
+end;
+
 procedure TInjectorTest.WhenTryToResolveAnInterfaceNotRegisteredMustFindInTheTypeInRttiAndResolveTheType;
 begin
   Assert.WillNotRaise(
@@ -337,7 +447,7 @@ begin
       var AnInterface := FInjector.Resolve<IMyInterface>;
 
       AnInterface := nil;
-    end);
+    end, ETypeFactoryNotRegistered);
 end;
 
 procedure TInjectorTest.WhenTryToResolveATypeNotRegisteredMustFindItInTheRttiAndResolveTheType;
@@ -348,7 +458,7 @@ begin
       var AClass := FInjector.Resolve<TSimpleClass>;
 
       AClass.Free;
-    end);
+    end, ETypeFactoryNotRegistered);
 end;
 
 { TClassWithConstructor }
@@ -585,6 +695,17 @@ begin
   var TheObject := AFactory.Construct(nil).AsType<TSimpleClass>;
 
   Assert.AreEqual(AClass, TheObject);
+end;
+
+{ TInterfaceFactoryTest }
+
+procedure TInterfaceFactoryTest.WhenConstructTheInterfaceMustLocateTheObjectThatImplementsTheInterface;
+begin
+  var Injector := TInjector.Create;
+
+  var Factory := TInterfaceFactory.Create(Injector, nil);
+
+  Assert.IsTrue(False, 'Tem que continuar daqui');
 end;
 
 end.
