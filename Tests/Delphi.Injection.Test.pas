@@ -44,8 +44,6 @@ type
   private
     FInjector: TInjector;
   public
-    [SetupFixture]
-    procedure SetupFixture;
     [Setup]
     procedure Setup;
     [TearDown]
@@ -132,9 +130,30 @@ type
 
   [TestFixture]
   TInterfaceFactoryTest = class
+  private
+    FContext: TRttiContext;
   public
+    [Setup]
+    procedure Setup;
+    [Teardown]
+    procedure Teardown;
     [Test]
     procedure WhenConstructTheInterfaceMustLocateTheObjectThatImplementsTheInterface;
+  end;
+
+  [TestFixture]
+  TRttiObjectHelperTest = class
+  private
+    FContext: TRttiContext;
+  public
+    [Setup]
+    procedure Setup;
+    [Teardown]
+    procedure Teardown;
+    [Test]
+    procedure TheFunctionIsInterfaceMustReturnTrueIfTheTypeIsAnInterface;
+    [Test]
+    procedure ThePropertyAsInterfaceMustConvertTheCurrentObjectInAnInterfaceRttiType;
   end;
 
   TSimpleClass = class
@@ -201,7 +220,6 @@ type
 
   {$M-}
   TClassNotRegistered = class
-
   end;
   {$M+}
 
@@ -216,20 +234,6 @@ begin
   FInjector := TInjector.Create;
 
   TMock.CreateInterface<IFactory>;
-end;
-
-procedure TInjectorTest.SetupFixture;
-begin
-  var Context := TRttiContext.Create;
-
-  for var RttiType in Context.GetTypes do
-  begin
-    RttiType.GetMethods;
-
-    RttiType.QualifiedName;
-  end;
-
-  Context.Free;
 end;
 
 procedure TInjectorTest.TearDown;
@@ -257,7 +261,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FInjector.Resolve<TClassNotRegistered>;
+      FInjector.Resolve<TClassNotRegistered>.Free;
 
       // Vou deixar assim, para o teste passar, por que a princípios o linkador não remove as classes
       raise ETypeFactoryNotRegistered.Create;
@@ -298,7 +302,7 @@ begin
 
   FInjector.RegisterFactory<TSimpleClass>(AFactory.Instance);
 
-  FInjector.Resolve<TSimpleClass>;
+  FInjector.Resolve<TSimpleClass>.Free;
 
   Assert.CheckExpectation(AFactory.CheckExpectations);
 end;
@@ -376,6 +380,8 @@ begin
   var TheObject := FInjector.Resolve<TSimpleClass>;
 
   Assert.AreEqual(AClass, TheObject);
+
+  AClass.Free;
 end;
 
 procedure TInjectorTest.WhenRegisterAnInstanceNamedFactoryMustUseThisFactoryToResolveTheType;
@@ -387,6 +393,8 @@ begin
   var TheObject := FInjector.Resolve<TSimpleClass>('MyFactory');
 
   Assert.AreEqual(AClass, TheObject);
+
+  AClass.Free;
 end;
 
 procedure TInjectorTest.WhenRegisterATypeNamedFactoryMustUseTheNamedFactoryToCreateTheType;
@@ -606,7 +614,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      Factory.Construct([123]);
+      Factory.Construct([123]).AsObject.Free;
     end);
 end;
 
@@ -695,17 +703,62 @@ begin
   var TheObject := AFactory.Construct(nil).AsType<TSimpleClass>;
 
   Assert.AreEqual(AClass, TheObject);
+
+  AClass.Free;
 end;
 
 { TInterfaceFactoryTest }
+
+procedure TInterfaceFactoryTest.Setup;
+begin
+  FContext := TRttiContext.Create;
+end;
+
+procedure TInterfaceFactoryTest.Teardown;
+begin
+  FContext.Free;
+end;
 
 procedure TInterfaceFactoryTest.WhenConstructTheInterfaceMustLocateTheObjectThatImplementsTheInterface;
 begin
   var Injector := TInjector.Create;
 
-  var Factory := TInterfaceFactory.Create(Injector, nil);
+  var Factory := TInterfaceFactory.Create(Injector, FContext.GetType(TypeInfo(IMyInterface)) as TRttiInterfaceType) as IFactory;
+  var MyInterface := Factory.Construct(nil);
 
-  Assert.IsTrue(False, 'Tem que continuar daqui');
+  Assert.IsFalse(MyInterface.IsEmpty);
+
+  Assert.AreEqual(TMyObjectInterface, TObject(MyInterface.AsType<IMyInterface>).ClassType);
+
+  Injector.Free;
+end;
+
+{ TRttiObjectHelperTest }
+
+procedure TRttiObjectHelperTest.Setup;
+begin
+  FContext := TRttiContext.Create;
+end;
+
+procedure TRttiObjectHelperTest.Teardown;
+begin
+  FContext.Free;
+end;
+
+procedure TRttiObjectHelperTest.TheFunctionIsInterfaceMustReturnTrueIfTheTypeIsAnInterface;
+begin
+  var AType := FContext.GetType(TypeInfo(IMyInterface));
+
+  Assert.IsTrue(AType.IsInterface);
+end;
+
+procedure TRttiObjectHelperTest.ThePropertyAsInterfaceMustConvertTheCurrentObjectInAnInterfaceRttiType;
+begin
+  var AType := FContext.GetType(TypeInfo(IMyInterface)).AsInterface;
+
+  Assert.IsNotNull(AType);
+
+  Assert.AreEqual(TRttiInterfaceType, AType.ClassType);
 end;
 
 end.

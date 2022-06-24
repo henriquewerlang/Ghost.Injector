@@ -52,12 +52,17 @@ type
 
   TInterfaceFactory = class(TFactory, IFactory)
   private
-//    FFactory: IFactory;
+    FFactory: IFactory;
     FInjector: TInjector;
+    FInterfaceType: TRttiInterfaceType;
 
     function Construct(const Params: TArray<TValue>): TValue;
+    function FindFactory: IFactory;
+    function GetFactory: IFactory;
+
+    property Factory: IFactory read GetFactory;
   public
-    constructor Create(const Injector: TInjector; const RttiType: TRttiInterfaceType);
+    constructor Create(const Injector: TInjector; const InterfaceType: TRttiInterfaceType);
   end;
 
   TInstanceFactory = class(TFactory, IFactory)
@@ -76,6 +81,7 @@ type
 
     function CreateFactory(const FactoryName: String; const AType: PTypeInfo): IFactory;
     function FindFactories(const FactoryName: String; const AType: PTypeInfo): TList<IFactory>;
+    function GetFactory(const FactoryName: String; const AType: PTypeInfo): IFactory;
     function RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TDictionary<String, TList<IFactory>>; overload;
   public
     constructor Create;
@@ -101,10 +107,10 @@ type
 
   TRttiObjectHelper = class helper for TRttiObject
   private
-    function GetIsInterface: Boolean;
+    function GetIsInterface: Boolean; inline;
+    function GetAsInterface: TRttiInterfaceType; inline;
   public
-    function GetAttribute<T: TCustomAttribute>: T;
-
+    property AsInterface: TRttiInterfaceType read GetAsInterface;
     property IsInterface: Boolean read GetIsInterface;
   end;
 
@@ -164,6 +170,19 @@ begin
   Result := FactoryList[FactoryName];
 end;
 
+function TInjector.GetFactory(const FactoryName: String; const AType: PTypeInfo): IFactory;
+begin
+  var Factories := FindFactories(FactoryName, AType);
+
+  if Assigned(Factories) then
+    if Factories.Count = 1 then
+      Result := Factories.First
+    else
+      raise EFoundMoreThenOneFactory.Create(FContext.GetType(AType))
+  else
+    raise ETypeFactoryNotRegistered.Create;
+end;
+
 procedure TInjector.RegisterFactory<T>(const Factory: T);
 begin
   RegisterFactory(EmptyStr, Factory);
@@ -214,15 +233,7 @@ end;
 
 function TInjector.Resolve<T>(const FactoryName: String; const Params: TArray<TValue>): T;
 begin
-  var Factories := FindFactories(FactoryName, TypeInfo(T));
-
-  if Assigned(Factories) then
-    if Factories.Count = 1 then
-      Result := Factories[0].Construct(Params).AsType<T>
-    else
-      raise EFoundMoreThenOneFactory.Create(FContext.GetType(TypeInfo(T)))
-  else
-    raise ETypeFactoryNotRegistered.Create;
+  Result := GetFactory(FactoryName, TypeInfo(T)).Construct(Params).AsType<T>
 end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String; const Factory: T);
@@ -265,13 +276,9 @@ end;
 
 { TRttiObjectHelper }
 
-function TRttiObjectHelper.GetAttribute<T>: T;
+function TRttiObjectHelper.GetAsInterface: TRttiInterfaceType;
 begin
-  Result := nil;
-
-  for var Attribute in GetAttributes do
-    if Attribute is T then
-      Exit(Attribute as T);
+  Result := Self as TRttiInterfaceType;
 end;
 
 function TRttiObjectHelper.GetIsInterface: Boolean;
@@ -334,14 +341,34 @@ end;
 
 function TInterfaceFactory.Construct(const Params: TArray<TValue>): TValue;
 begin
-//  FInjector.FContext.GetTypes
+  Result := Factory.Construct(Params);
 end;
 
-constructor TInterfaceFactory.Create(const Injector: TInjector; const RttiType: TRttiInterfaceType);
+constructor TInterfaceFactory.Create(const Injector: TInjector; const InterfaceType: TRttiInterfaceType);
 begin
   inherited Create;
 
   FInjector := Injector;
+  FInterfaceType := InterfaceType;
+end;
+
+function TInterfaceFactory.FindFactory: IFactory;
+begin
+  Result := nil;
+
+  for var AType in FInjector.FContext.GetTypes do
+    if AType.IsInstance then
+      for var InterfaceType in AType.AsInstance.GetImplementedInterfaces do
+        if InterfaceType = FInterfaceType then
+          Exit(FInjector.GetFactory(EmptyStr, AType.Handle));
+end;
+
+function TInterfaceFactory.GetFactory: IFactory;
+begin
+  if not Assigned(FFactory) then
+    FFactory := FindFactory;
+
+  Result := FFactory;
 end;
 
 { TInstanceFactory }
