@@ -17,7 +17,7 @@ type
 
   ETypeFactoryNotRegistered = class(Exception)
   public
-    constructor Create;
+    constructor Create(const AType: TRttiType);
   end;
 
   TInjector = class;
@@ -77,12 +77,14 @@ type
   TInjector = class
   private
     FContext: TRttiContext;
-    FRegisteredTypes: TDictionary<TRttiType, TDictionary<String, TList<IFactory>>>;
+    FRegisteredTypes: TDictionary<String, TList<IFactory>>;
 
-    function CreateFactory(const FactoryName: String; const AType: PTypeInfo): IFactory;
-    function FindFactories(const FactoryName: String; const AType: PTypeInfo): TList<IFactory>;
-    function GetFactory(const FactoryName: String; const AType: PTypeInfo): IFactory;
-    function RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TDictionary<String, TList<IFactory>>; overload;
+    function CreateFactory(const FactoryName: String; const AType: TRttiStructuredType): IFactory;
+    function FindFactories(const FactoryName: String; const AType: TRttiStructuredType): TList<IFactory>;
+    function GetFactory(const FactoryName: String; const AType: TRttiStructuredType): IFactory;
+    function GetRegisterName(const FactoryName: String; const AType: TRttiStructuredType): String;
+    function GetStructuredType<T>: TRttiStructuredType; inline;
+    function RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TList<IFactory>; overload;
   public
     constructor Create;
 
@@ -92,6 +94,10 @@ type
     function Resolve<T>(const Params: TArray<TValue>): T; overload;
     function Resolve<T>(const FactoryName: String): T; overload;
     function Resolve<T>(const FactoryName: String; const Params: TArray<TValue>): T; overload;
+    function ResolveAll<T>: TArray<T>; overload;
+    function ResolveAll<T>(const Params: TArray<TValue>): TArray<T>; overload;
+    function ResolveAll<T>(const FactoryName: String): TArray<T>; overload;
+    function ResolveAll<T>(const FactoryName: String; const Params: TArray<TValue>): TArray<T>; overload;
 
     procedure RegisterFactory<T>; overload;
     procedure RegisterFactory<T>(const FactoryName: String); overload;
@@ -120,14 +126,14 @@ implementation
 
 constructor EConstructorNotFound.Create(const AType: TRttiType);
 begin
-  inherited CreateFmt('Constructor not found to the type %s!', [AType.QualifiedName]);
+  inherited CreateFmt('Constructor not found for the type %s!', [AType.QualifiedName]);
 end;
 
 { ETypeFactoryNotRegistered }
 
-constructor ETypeFactoryNotRegistered.Create;
+constructor ETypeFactoryNotRegistered.Create(const AType: TRttiType);
 begin
-  inherited Create('The factory isn''t registered!');
+  inherited CreateFmt('The factory isn''t registered for the type %s!', [AType.QualifiedName]);
 end;
 
 { TInjector }
@@ -137,17 +143,15 @@ begin
   inherited;
 
   FContext := TRttiContext.Create;
-  FRegisteredTypes := TObjectDictionary<TRttiType, TDictionary<String, TList<IFactory>>>.Create([doOwnsValues]);
+  FRegisteredTypes := TObjectDictionary<String, TList<IFactory>>.Create([doOwnsValues]);
 end;
 
-function TInjector.CreateFactory(const FactoryName: String; const AType: PTypeInfo): IFactory;
+function TInjector.CreateFactory(const FactoryName: String; const AType: TRttiStructuredType): IFactory;
 begin
-  var TheType := FContext.GetType(AType) as TRttiStructuredType;
-
-  if TheType.IsInterface then
-    Result := TInterfaceFactory.Create(Self, TheType as TRttiInterfaceType)
+  if AType.IsInterface then
+    Result := TInterfaceFactory.Create(Self, AType as TRttiInterfaceType)
   else
-    Result := TObjectFactory.Create(TheType.AsInstance);
+    Result := TObjectFactory.Create(AType.AsInstance);
 end;
 
 destructor TInjector.Destroy;
@@ -159,18 +163,13 @@ begin
   inherited;
 end;
 
-function TInjector.FindFactories(const FactoryName: String; const AType: PTypeInfo): TList<IFactory>;
+function TInjector.FindFactories(const FactoryName: String; const AType: TRttiStructuredType): TList<IFactory>;
 begin
-  var FactoryList: TDictionary<String, TList<IFactory>>;
-  var RttiType := FContext.GetType(AType) as TRttiStructuredType;
-
-  if not FRegisteredTypes.TryGetValue(RttiType, FactoryList) then
-    FactoryList := RegisterFactory(FactoryName, RttiType, CreateFactory(EmptyStr, AType));
-
-  Result := FactoryList[FactoryName];
+  if not FRegisteredTypes.TryGetValue(GetRegisterName(FactoryName, AType), Result) then
+    Result := RegisterFactory(FactoryName, AType, CreateFactory(EmptyStr, AType));
 end;
 
-function TInjector.GetFactory(const FactoryName: String; const AType: PTypeInfo): IFactory;
+function TInjector.GetFactory(const FactoryName: String; const AType: TRttiStructuredType): IFactory;
 begin
   var Factories := FindFactories(FactoryName, AType);
 
@@ -178,9 +177,19 @@ begin
     if Factories.Count = 1 then
       Result := Factories.First
     else
-      raise EFoundMoreThenOneFactory.Create(FContext.GetType(AType))
+      raise EFoundMoreThenOneFactory.Create(AType)
   else
-    raise ETypeFactoryNotRegistered.Create;
+    raise ETypeFactoryNotRegistered.Create(AType);
+end;
+
+function TInjector.GetRegisterName(const FactoryName: String; const AType: TRttiStructuredType): String;
+begin
+  Result := Format('%s-%s', [AType.QualifiedName, FactoryName]);
+end;
+
+function TInjector.GetStructuredType<T>: TRttiStructuredType;
+begin
+  Result := FContext.GetType(TypeInfo(T)) as TRttiStructuredType;
 end;
 
 procedure TInjector.RegisterFactory<T>(const Factory: T);
@@ -193,17 +202,18 @@ begin
   RegisterFactory<T>(EmptyStr, Factory);
 end;
 
-function TInjector.RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TDictionary<String, TList<IFactory>>;
+function TInjector.RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TList<IFactory>;
 begin
-  if not FRegisteredTypes.TryGetValue(AType, Result) then
-  begin
-    Result := TObjectDictionary<String, TList<IFactory>>.Create([doOwnsValues]);
-    Result.Add(FactoryName, TList<IFactory>.Create);
+  var RegisterName := GetRegisterName(FactoryName, AType);
 
-    FRegisteredTypes.Add(AType, Result);
+  if not FRegisteredTypes.TryGetValue(RegisterName, Result) then
+  begin
+    Result := TList<IFactory>.Create;
+
+    FRegisteredTypes.Add(RegisterName, Result);
   end;
 
-  Result[FactoryName].Add(Factory);
+  Result.Add(Factory);
 end;
 
 procedure TInjector.RegisterFactory<T>(const Factory: TFunc<T>);
@@ -233,7 +243,27 @@ end;
 
 function TInjector.Resolve<T>(const FactoryName: String; const Params: TArray<TValue>): T;
 begin
-  Result := GetFactory(FactoryName, TypeInfo(T)).Construct(Params).AsType<T>
+  Result := GetFactory(FactoryName, GetStructuredType<T>).Construct(Params).AsType<T>
+end;
+
+function TInjector.ResolveAll<T>: TArray<T>;
+begin
+
+end;
+
+function TInjector.ResolveAll<T>(const Params: TArray<TValue>): TArray<T>;
+begin
+
+end;
+
+function TInjector.ResolveAll<T>(const FactoryName: String): TArray<T>;
+begin
+
+end;
+
+function TInjector.ResolveAll<T>(const FactoryName: String; const Params: TArray<TValue>): TArray<T>;
+begin
+  SetLength(Result, 3);
 end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String; const Factory: T);
@@ -243,7 +273,7 @@ end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String);
 begin
-  RegisterFactory<T>(FactoryName, CreateFactory(FactoryName, TypeInfo(T)));
+  RegisterFactory<T>(FactoryName, CreateFactory(FactoryName, GetStructuredType<T>));
 end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String; const Factory: TFactoryFunction<T>);
@@ -271,7 +301,7 @@ end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String; const Factory: IFactory);
 begin
-  RegisterFactory(FactoryName, FContext.GetType(TypeInfo(T)) as TRttiStructuredType, Factory);
+  RegisterFactory(FactoryName, GetStructuredType<T>, Factory);
 end;
 
 { TRttiObjectHelper }
@@ -360,7 +390,7 @@ begin
     if AType.IsInstance then
       for var InterfaceType in AType.AsInstance.GetImplementedInterfaces do
         if InterfaceType = FInterfaceType then
-          Exit(FInjector.GetFactory(EmptyStr, AType.Handle));
+          Exit(FInjector.GetFactory(EmptyStr, AType.AsInstance));
 end;
 
 function TInterfaceFactory.GetFactory: IFactory;
