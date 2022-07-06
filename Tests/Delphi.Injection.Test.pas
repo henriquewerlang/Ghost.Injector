@@ -84,6 +84,12 @@ type
     procedure WhenResolveAnInterfaceMustReturnTheInterfaceInstanceLoaded;
     [Test]
     procedure WhenResolveAllMustCreateAllTypeRegisteredForFactotySelected;
+    [Test]
+    procedure WhenResolveAllMustCreateAllTypeRegisteredForFactotySelectedWithTheParamPassed;
+    [Test]
+    procedure WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatType;
+    [Test]
+    procedure WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatTypeWithTheParamPassed;
   end;
 
   [TestFixture]
@@ -406,27 +412,138 @@ end;
 
 procedure TInjectorTest.WhenResolveAllMustCreateAllTypeRegisteredForFactotySelected;
 begin
+  var CalledFunction1 := False;
+  var CalledFunction2 := False;
+  var CalledFunction3 := False;
+
   FInjector.RegisterFactory<IMyInterface>('MyFactory',
     function: IMyInterface
     begin
+      CalledFunction1 := True;
       Result := nil;
     end);
 
   FInjector.RegisterFactory<IMyInterface>('MyFactory',
     function: IMyInterface
     begin
+      CalledFunction2 := True;
       Result := nil;
     end);
 
   FInjector.RegisterFactory<IMyInterface>('MyFactory',
     function: IMyInterface
     begin
+      CalledFunction3 := True;
       Result := nil;
     end);
 
-  var ResolvedValues := FInjector.ResolveAll<IMyInterface>('MyFactory', [0]);
+  var ResolvedValues := FInjector.ResolveAll<IMyInterface>('MyFactory');
 
   Assert.AreEqual<NativeInt>(3, Length(ResolvedValues));
+
+  Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
+end;
+
+procedure TInjectorTest.WhenResolveAllMustCreateAllTypeRegisteredForFactotySelectedWithTheParamPassed;
+begin
+  var CalledFunction1 := False;
+  var CalledFunction2 := False;
+  var CalledFunction3 := False;
+
+  FInjector.RegisterFactory<IMyInterface>('MyFactory',
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction1 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
+      Result := nil;
+    end);
+
+  FInjector.RegisterFactory<IMyInterface>('MyFactory',
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction2 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
+      Result := nil;
+    end);
+
+  FInjector.RegisterFactory<IMyInterface>('MyFactory',
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction3 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
+      Result := nil;
+    end);
+
+  var ResolvedValues := FInjector.ResolveAll<IMyInterface>('MyFactory', [123, 'abc']);
+
+  Assert.AreEqual<NativeInt>(3, Length(ResolvedValues));
+
+  Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
+end;
+
+procedure TInjectorTest.WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatType;
+begin
+  var CalledFunction1 := False;
+  var CalledFunction2 := False;
+  var CalledFunction3 := False;
+
+  FInjector.RegisterFactory<IMyInterface>(
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction1 := True;
+      Result := nil;
+    end);
+
+  FInjector.RegisterFactory<IMyInterface>(
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction2 := True;
+      Result := nil;
+    end);
+
+  FInjector.RegisterFactory<IMyInterface>(
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction3 := True;
+      Result := nil;
+    end);
+
+  var ResolvedValues := FInjector.ResolveAll<IMyInterface>;
+
+  Assert.AreEqual<NativeInt>(3, Length(ResolvedValues));
+
+  Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
+end;
+
+procedure TInjectorTest.WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatTypeWithTheParamPassed;
+begin
+  var CalledFunction1 := False;
+  var CalledFunction2 := False;
+  var CalledFunction3 := False;
+
+  FInjector.RegisterFactory<IMyInterface>(
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction1 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
+      Result := nil;
+    end);
+
+  FInjector.RegisterFactory<IMyInterface>(
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction2 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
+      Result := nil;
+    end);
+
+  FInjector.RegisterFactory<IMyInterface>(
+    function (const Params: TArray<TValue>): IMyInterface
+    begin
+      CalledFunction3 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
+      Result := nil;
+    end);
+
+  var ResolvedValues := FInjector.ResolveAll<IMyInterface>([123, 'abc']);
+
+  Assert.AreEqual<NativeInt>(3, Length(ResolvedValues));
+
+  Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
 end;
 
 procedure TInjectorTest.WhenResolveAnInterfaceMustReturnTheInterfaceInstanceLoaded;

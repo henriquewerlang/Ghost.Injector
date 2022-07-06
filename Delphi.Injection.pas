@@ -248,22 +248,25 @@ end;
 
 function TInjector.ResolveAll<T>: TArray<T>;
 begin
-
+  Result := ResolveAll<T>([]);
 end;
 
 function TInjector.ResolveAll<T>(const Params: TArray<TValue>): TArray<T>;
 begin
-
+  Result := ResolveAll<T>(EmptyStr, Params);
 end;
 
 function TInjector.ResolveAll<T>(const FactoryName: String): TArray<T>;
 begin
-
+  Result := ResolveAll<T>(FactoryName, []);
 end;
 
 function TInjector.ResolveAll<T>(const FactoryName: String; const Params: TArray<TValue>): TArray<T>;
 begin
-  SetLength(Result, 3);
+  Result := nil;
+
+  for var Factory in FindFactories(FactoryName, GetStructuredType<T>) do
+    Result := Result + [Factory.Construct(Params).AsType<T>];
 end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String; const Factory: T);
