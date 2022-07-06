@@ -1,8 +1,8 @@
-﻿unit Delphi.Injection.Test;
+﻿unit Ghost.Injector.Test;
 
 interface
 
-uses DUnitX.TestFramework, System.Rtti, Delphi.Injection, System.Classes;
+uses DUnitX.TestFramework, System.Rtti, Ghost.Injector, System.Classes;
 
 type
 {
@@ -13,7 +13,6 @@ type
     * Como foi feito no ORM para valores, mas nesse caso é para construir o objeto concreto
 
   Fábrica de interface
-  - Tem que localizar os tipos concretos, o qual implementam essa classe e registrar para construir a mesma com essa classe
   - Localizar uma classe que implementa ela
     * Tem que verificar se as classes encontradas tem alguma anotação de nome de serviço. Se tiver, verificar se o parâmetro e nome de serviço fecha. Se encontrar mais de uma
       fechando os critérios, por nome de serviço ou padrão, tem que dar erro

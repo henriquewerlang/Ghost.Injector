@@ -8,7 +8,7 @@
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Console</AppType>
-        <MainSource>Delphi.Injection.Tests.dpr</MainSource>
+        <MainSource>Ghost.Injector.Tests.dpr</MainSource>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
@@ -59,7 +59,7 @@
         <Icns_MainIcns>$(BDS)\bin\delphi_PROJECTICNS.icns</Icns_MainIcns>
         <DCC_UnitSearchPath>..\Externals\DUnitX\Source;..\Externals\FastMM5;..\Externals\Delphi.Mock;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Define>TESTINSIGHT;USE_NS;$(DCC_Define)</DCC_Define>
-        <SanitizedProjectName>Delphi_Injection_Tests</SanitizedProjectName>
+        <SanitizedProjectName>Ghost_Injector_Tests</SanitizedProjectName>
         <VerInfo_Locale>1046</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_RunTimeTypeInfo>true</DCC_RunTimeTypeInfo>
@@ -105,8 +105,8 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="..\Delphi.Injection.pas"/>
-        <DCCReference Include="Delphi.Injection.Test.pas"/>
+        <DCCReference Include="..\Ghost.Injector.pas"/>
+        <DCCReference Include="Ghost.Injector.Test.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -125,7 +125,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">Delphi.Injection.Tests.dpr</Source>
+                    <Source Name="MainSource">Ghost.Injector.Tests.dpr</Source>
                 </Source>
                 <Excluded_Packages/>
             </Delphi.Personality>
@@ -145,9 +145,9 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="Win32\Debug\Delphi.Injection.Tests.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="Win32\Debug\Ghost.Injector.Tests.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>Delphi_Injection_Tests.exe</RemoteName>
+                        <RemoteName>Ghost_Injector_Tests.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

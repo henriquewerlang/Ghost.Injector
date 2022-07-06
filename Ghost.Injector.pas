@@ -1,4 +1,4 @@
-﻿unit Delphi.Injection;
+﻿unit Ghost.Injector;
 
 interface
 

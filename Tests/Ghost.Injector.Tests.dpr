@@ -1,4 +1,4 @@
-﻿program Delphi.Injection.Tests;
+﻿program Ghost.Injector.Tests;
 
 {$STRONGLINKTYPES ON}
 
@@ -8,8 +8,8 @@ uses
   TestInsight.DUnitX,
   DUnitX.TestFramework,
   System.Rtti,
-  Delphi.Injection in '..\Delphi.Injection.pas',
-  Delphi.Injection.Test in 'Delphi.Injection.Test.pas';
+  Ghost.Injector in '..\Ghost.Injector.pas',
+  Ghost.Injector.Test in 'Ghost.Injector.Test.pas';
 
 begin
   FastMM_EnterDebugMode;
