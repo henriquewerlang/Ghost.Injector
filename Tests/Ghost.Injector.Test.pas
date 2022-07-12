@@ -9,8 +9,6 @@ type
   Injetor
   - Injetar campos das classes, isso tem que ser via anotação
   - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
-  - Criar um esquema de construção atrasado, como um LazyFactory
-    * Como foi feito no ORM para valores, mas nesse caso é para construir o objeto concreto
 
   Fábrica de interface
   - Localizar uma classe que implementa ela
@@ -26,16 +24,11 @@ type
     * Isso tem que ocorrer em todos os níveis, salvo, não encontrar contrutor em nível nenhum
   - Lançar um erro quando não encontrar todos os parâmetros do construtor da classe
   - Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe
-  - Como definir qual objeto derivado utilizar no construtor?
-    * Provavelmente terei que utilizar anotações por não saber qual escolher
-      ** Péssima ideia, é mais provavel mandar resolver o tipo que precisa, e passar para o resolvedor
-    * Mesmo assim pode existir mais de uma opção, mas resolver o problema do parâmetro se uma classe base
   - Tem localizar os contrutores da própria classe
   - Senão encontrar contrutores na própria classe, tem que ir descendo os níveis, no primeiro que encontrar, tem que utilizar algum contrutor desse nível
     * Se os parâmetros não forem iguais, tem que dar erro
     * Se a classe tem derivações, e em algum nível de derivação exitir um construtor, tem que utilizar ele, para não dar o problema do Spring, de utilizar o contrutor do TObject,
       sendo que existe um contrutor em qualquer nível das classes herdadas
-  - Na fábrica de objetos, tem que permitir utilizar apenas construtores públicos
 }
 
   [TestFixture]
@@ -126,6 +119,8 @@ type
     [TestCase('String param', '0,abc')]
     [TestCase('Integer param', '123,')]
     procedure WhenTheClassHasMoreThenOneContructorWithSameQuantityOfParamsMustSelectTheConstructorByTheParamType(const IntegerParam: Integer; const StringParam: String);
+    [Test]
+    procedure ThisFactoryCanOnlyUsePublicConstructors;
   end;
 
   [TestFixture]
@@ -216,6 +211,21 @@ type
 
     property IntegerProperty: Integer read FIntegerProperty write FIntegerProperty;
     property StringProperty: String read FStringProperty write FStringProperty;
+  end;
+
+  TClassWithPrivateAndProtectedConstructor = class
+  private
+    FValue: String;
+
+    constructor Create(const Value: String); overload;
+  protected
+    constructor Create(const Value: Integer); overload;
+  public
+    constructor Create(const Value: Double); overload;
+
+    property Value: String read FValue write FValue;
+  published
+    constructor Create(const Value: TObject); overload;
   end;
 
   IMyInterface = interface
@@ -734,6 +744,37 @@ begin
   FContext := TRttiContext.Create;
 end;
 
+procedure TObjectFactoryTest.ThisFactoryCanOnlyUsePublicConstructors;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPrivateAndProtectedConstructor).AsInstance) as IFactory;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Factory.Construct(['abc']).AsType<TClassWithPrivateAndProtectedConstructor>;
+    end, EConstructorNotFound);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Factory.Construct([123]).AsType<TClassWithPrivateAndProtectedConstructor>;
+    end, EConstructorNotFound);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Factory.Construct([123.456]).AsType<TClassWithPrivateAndProtectedConstructor>.Free;
+    end, EConstructorNotFound);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Factory.Construct([Self]).AsType<TClassWithPrivateAndProtectedConstructor>.Free;
+    end, EConstructorNotFound);
+
+  Factory := nil;
+end;
+
 procedure TObjectFactoryTest.WhenCallTheConstructMustCreateTheClassInsideTheFactory;
 begin
   var Factory := TObjectFactory.Create(FContext.GetType(TSimpleClass).AsInstance) as IFactory;
@@ -896,6 +937,28 @@ begin
   Assert.IsNotNull(AType);
 
   Assert.AreEqual(TRttiInterfaceType, AType.ClassType);
+end;
+
+{ TClassWithPrivateAndProtectedConstructor }
+
+constructor TClassWithPrivateAndProtectedConstructor.Create(const Value: String);
+begin
+  FValue := Value;
+end;
+
+constructor TClassWithPrivateAndProtectedConstructor.Create(const Value: Integer);
+begin
+  Create(Value.ToString);
+end;
+
+constructor TClassWithPrivateAndProtectedConstructor.Create(const Value: Double);
+begin
+  Create(Value.ToString);
+end;
+
+constructor TClassWithPrivateAndProtectedConstructor.Create(const Value: TObject);
+begin
+  Create('Create an object');
 end;
 
 end.
