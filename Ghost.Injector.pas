@@ -5,7 +5,7 @@ interface
 uses System.TypInfo, System.Rtti, System.Generics.Collections, System.SysUtils;
 
 type
-  EConstructorNotFound = class(Exception)
+  EConstructorParamsMismatch = class(Exception)
   public
     constructor Create(const AType: TRttiType);
   end;
@@ -122,13 +122,6 @@ type
 
 implementation
 
-{ EConstructorNotFound }
-
-constructor EConstructorNotFound.Create(const AType: TRttiType);
-begin
-  inherited CreateFmt('Constructor not found for the type %s!', [AType.QualifiedName]);
-end;
-
 { ETypeFactoryNotRegistered }
 
 constructor ETypeFactoryNotRegistered.Create(const AType: TRttiType);
@@ -149,7 +142,7 @@ end;
 function TInjector.CreateFactory(const FactoryName: String; const AType: TRttiStructuredType): IFactory;
 begin
   if AType.IsInterface then
-    Result := TInterfaceFactory.Create(Self, AType as TRttiInterfaceType)
+    Result := TInterfaceFactory.Create(Self, AType.AsInterface)
   else
     Result := TObjectFactory.Create(AType.AsInstance);
 end;
@@ -352,22 +345,32 @@ function TObjectFactory.FindConstructorCandidate(const Params: TArray<TValue>): 
 
   function SameParameters(const AMethod: TRttiMethod): Boolean;
   begin
-    var
-    Parameters := AMethod.GetParameters;
+    var Parameters := AMethod.GetParameters;
     Result := Length(Parameters) = Length(Params);
 
     if Result then
-      for var A := 0 to High(Params) do
+      for var A := Low(Params) to High(Params) do
         if Parameters[A].ParamType.TypeKind <> Params[A].Kind then
           Exit(False);
   end;
 
 begin
-  for var AMethod in FObjectType.GetMethods do
-    if AMethod.IsConstructor and SameParameters(AMethod) then
-      Exit(AMethod);
+  var ConstructorFound := False;
+  var CurrentType := FObjectType;
 
-  raise EConstructorNotFound.Create(FObjectType);
+  repeat
+    for var AMethod in CurrentType.GetDeclaredMethods do
+    begin
+      ConstructorFound := ConstructorFound or AMethod.IsConstructor;
+
+      if AMethod.IsConstructor and SameParameters(AMethod) then
+        Exit(AMethod);
+    end;
+
+    CurrentType := CurrentType.BaseType;
+  until ConstructorFound;
+
+  raise EConstructorParamsMismatch.Create(FObjectType);
 end;
 
 { TInterfaceFactory }
@@ -423,6 +426,13 @@ end;
 constructor EFoundMoreThenOneFactory.Create(const AType: TRttiType);
 begin
   inherited CreateFmt('Too many factories for the type "%s"!', [AType.QualifiedClassName]);
+end;
+
+{ EConstructorParamsMismatch }
+
+constructor EConstructorParamsMismatch.Create(const AType: TRttiType);
+begin
+  inherited CreateFmt('The constructor params mismatch for the type %s!', [AType.QualifiedName]);
 end;
 
 end.
