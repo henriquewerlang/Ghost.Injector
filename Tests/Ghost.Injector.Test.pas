@@ -11,24 +11,13 @@ type
   - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
 
   Fábrica de interface
-  - Localizar uma classe que implementa ela
-    * Tem que verificar se as classes encontradas tem alguma anotação de nome de serviço. Se tiver, verificar se o parâmetro e nome de serviço fecha. Se encontrar mais de uma
-      fechando os critérios, por nome de serviço ou padrão, tem que dar erro
   - Por uma anotação de qual classe deve ser criada
     * Teria que ser o nome, senão teria problema de referência circular
+  - Registro nomeado tem que ser levado em consideração na busca do objeto para fábrica, não está fazendo isso
 
   Fábrica de objeto
   - Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo
-  - Se no nível atual não tiver um construtor tem que ir para a base da classe, e assim por diante até encontrar o construtor do TObject
-    * Tem que verificar se a classe sendo contruída tem construtor, se tiver e não conseguir construir tem que dar erro
-    * Isso tem que ocorrer em todos os níveis, salvo, não encontrar contrutor em nível nenhum
-  - Lançar um erro quando não encontrar todos os parâmetros do construtor da classe
   - Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe
-  - Tem localizar os contrutores da própria classe
-  - Senão encontrar contrutores na própria classe, tem que ir descendo os níveis, no primeiro que encontrar, tem que utilizar algum contrutor desse nível
-    * Se os parâmetros não forem iguais, tem que dar erro
-    * Se a classe tem derivações, e em algum nível de derivação exitir um construtor, tem que utilizar ele, para não dar o problema do Spring, de utilizar o contrutor do TObject,
-      sendo que existe um contrutor em qualquer nível das classes herdadas
 }
 
   [TestFixture]
@@ -121,6 +110,14 @@ type
     procedure WhenTheClassHasMoreThenOneContructorWithSameQuantityOfParamsMustSelectTheConstructorByTheParamType(const IntegerParam: Integer; const StringParam: String);
     [Test]
     procedure ThisFactoryCanOnlyUsePublicConstructors;
+    [Test]
+    procedure WhenTheClassDontHaveAnyPublicConstructorsMustRaiseError;
+    [Test]
+    procedure WhenTheConstructorParamsIsntTheSameMustRaiseExceptionOfMismatchParams;
+    [Test]
+    procedure TheFactoryCanOnlyUseTheConstructorFromTheCurrentDerivation;
+    [Test]
+    procedure WhenAClassHasNoConstructorMustSearchInTheBaseClassTheConstructor;
   end;
 
   [TestFixture]
@@ -213,19 +210,31 @@ type
     property StringProperty: String read FStringProperty write FStringProperty;
   end;
 
-  TClassWithPrivateAndProtectedConstructor = class
+  TClassWithPrivateAndProtectedConstructors = class
   private
-    FValue: String;
-
     constructor Create(const Value: String); overload;
   protected
     constructor Create(const Value: Integer); overload;
+  end;
+
+  TClassWithPublicAndPublishedConstructors = class
   public
     constructor Create(const Value: Double); overload;
-
-    property Value: String read FValue write FValue;
   published
     constructor Create(const Value: TObject); overload;
+  end;
+
+  TClassBase = class
+  public
+    constructor Create(const Value: String);
+  end;
+
+  TClassDerived = class(TClassBase)
+  public
+    constructor Create(const Value: Integer);
+  end;
+
+  TClassDerivedMoreOne = class(TClassDerived)
   end;
 
   IMyInterface = interface
@@ -744,35 +753,46 @@ begin
   FContext := TRttiContext.Create;
 end;
 
-procedure TObjectFactoryTest.ThisFactoryCanOnlyUsePublicConstructors;
+procedure TObjectFactoryTest.TheFactoryCanOnlyUseTheConstructorFromTheCurrentDerivation;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPrivateAndProtectedConstructor).AsInstance) as IFactory;
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassDerived).AsInstance) as IFactory;
 
   Assert.WillRaise(
     procedure
     begin
-      Factory.Construct(['abc']).AsType<TClassWithPrivateAndProtectedConstructor>;
-    end, EConstructorNotFound);
-
-  Assert.WillRaise(
-    procedure
-    begin
-      Factory.Construct([123]).AsType<TClassWithPrivateAndProtectedConstructor>;
-    end, EConstructorNotFound);
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      Factory.Construct([123.456]).AsType<TClassWithPrivateAndProtectedConstructor>.Free;
-    end, EConstructorNotFound);
-
-  Assert.WillNotRaise(
-    procedure
-    begin
-      Factory.Construct([Self]).AsType<TClassWithPrivateAndProtectedConstructor>.Free;
-    end, EConstructorNotFound);
+      Factory.Construct(['abc']).AsType<TClassDerived>;
+    end, EConstructorParamsMismatch);
 
   Factory := nil;
+end;
+
+procedure TObjectFactoryTest.ThisFactoryCanOnlyUsePublicConstructors;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Factory.Construct([123.456]).AsType<TClassWithPublicAndPublishedConstructors>.Free;
+    end);
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      Factory.Construct([Self]).AsType<TClassWithPublicAndPublishedConstructors>.Free;
+    end);
+
+  Factory := nil;
+end;
+
+procedure TObjectFactoryTest.WhenAClassHasNoConstructorMustSearchInTheBaseClassTheConstructor;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassDerivedMoreOne).AsInstance) as IFactory;
+  var TheObject := Factory.Construct([1234]).AsObject;
+
+  Assert.IsNotNull(TheObject);
+
+  TheObject.Free;
 end;
 
 procedure TObjectFactoryTest.WhenCallTheConstructMustCreateTheClassInsideTheFactory;
@@ -811,6 +831,25 @@ begin
   AnObject.Free;
 
   TheObject.Free;
+end;
+
+procedure TObjectFactoryTest.WhenTheClassDontHaveAnyPublicConstructorsMustRaiseError;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPrivateAndProtectedConstructors).AsInstance) as IFactory;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Factory.Construct(['abc']).AsType<TClassWithPrivateAndProtectedConstructors>;
+    end);
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Factory.Construct([123]).AsType<TClassWithPrivateAndProtectedConstructors>;
+    end);
+
+  Factory := nil;
 end;
 
 procedure TObjectFactoryTest.WhenTheClassHasAConstrutorMustCallThisConstructorOnTheFactory;
@@ -870,6 +909,19 @@ begin
   Assert.AreEqual(StringParam, AClass.StringProperty);
 
   AClass.Free;
+end;
+
+procedure TObjectFactoryTest.WhenTheConstructorParamsIsntTheSameMustRaiseExceptionOfMismatchParams;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      Factory.Construct([123]).AsType<TClassWithPublicAndPublishedConstructors>;
+    end, EConstructorParamsMismatch);
+
+  Factory := nil;
 end;
 
 { TInstanceFactoryTest }
@@ -941,24 +993,40 @@ end;
 
 { TClassWithPrivateAndProtectedConstructor }
 
-constructor TClassWithPrivateAndProtectedConstructor.Create(const Value: String);
+constructor TClassWithPrivateAndProtectedConstructors.Create(const Value: String);
 begin
-  FValue := Value;
+
 end;
 
-constructor TClassWithPrivateAndProtectedConstructor.Create(const Value: Integer);
+constructor TClassWithPrivateAndProtectedConstructors.Create(const Value: Integer);
 begin
   Create(Value.ToString);
 end;
 
-constructor TClassWithPrivateAndProtectedConstructor.Create(const Value: Double);
+{ TClassWithPublicAndPublishedConstructors }
+
+constructor TClassWithPublicAndPublishedConstructors.Create(const Value: TObject);
 begin
-  Create(Value.ToString);
+
 end;
 
-constructor TClassWithPrivateAndProtectedConstructor.Create(const Value: TObject);
+constructor TClassWithPublicAndPublishedConstructors.Create(const Value: Double);
 begin
-  Create('Create an object');
+
+end;
+
+{ TClassBase }
+
+constructor TClassBase.Create(const Value: String);
+begin
+
+end;
+
+{ TClassDerived }
+
+constructor TClassDerived.Create(const Value: Integer);
+begin
+
 end;
 
 end.
