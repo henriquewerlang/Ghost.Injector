@@ -8,6 +8,7 @@ type
 {
   Injetor
   - Injetar campos das classes, isso tem que ser via anotação
+    * Criar algum tipo de mapeamento, para quando criar a classe já injetar todos os campos requisitados
   - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
 
   Fábrica de interface
@@ -17,6 +18,8 @@ type
 
   Fábrica de objeto
   - Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo
+    * A Rtti já faz essa checagem no TryCast do TValue, ou seja, tem que mudar o FindConstructorCandidate para retornar os parâmetros já convertidos, por que o Invoke não aceita
+      parâmetros de tipo diferente!
   - Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe
 }
 
@@ -118,6 +121,10 @@ type
     procedure TheFactoryCanOnlyUseTheConstructorFromTheCurrentDerivation;
     [Test]
     procedure WhenAClassHasNoConstructorMustSearchInTheBaseClassTheConstructor;
+    [Test]
+    procedure WhenTheParamCanBeConvertedInAnotherTypeToCreateCantRaiseAnyError;
+    [Test]
+    procedure TheValuePassedInTheParamsMustBeConvertedAndPassedToTheObjectContructor;
   end;
 
   [TestFixture]
@@ -218,6 +225,9 @@ type
   end;
 
   TClassWithPublicAndPublishedConstructors = class
+  private
+    FDoubleValue: Double;
+    FObjectValue: TObject;
   public
     constructor Create(const Value: Double); overload;
   published
@@ -766,6 +776,16 @@ begin
   Factory := nil;
 end;
 
+procedure TObjectFactoryTest.TheValuePassedInTheParamsMustBeConvertedAndPassedToTheObjectContructor;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
+  var TheObject := Factory.Construct([1234]).AsType<TClassWithPublicAndPublishedConstructors>;
+
+  Assert.AreEqual<Double>(1234, TheObject.FDoubleValue);
+
+  TheObject.Free;
+end;
+
 procedure TObjectFactoryTest.ThisFactoryCanOnlyUsePublicConstructors;
 begin
   var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
@@ -918,10 +938,24 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      Factory.Construct([123]).AsType<TClassWithPublicAndPublishedConstructors>;
+      Factory.Construct(['123']).AsType<TClassWithPublicAndPublishedConstructors>;
     end, EConstructorParamsMismatch);
 
   Factory := nil;
+end;
+
+procedure TObjectFactoryTest.WhenTheParamCanBeConvertedInAnotherTypeToCreateCantRaiseAnyError;
+begin
+  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
+  var TheObject: TObject := nil;
+
+  Assert.WillNotRaise(
+    procedure
+    begin
+      TheObject := Factory.Construct([1234]).AsObject;
+    end);
+
+  TheObject.Free;
 end;
 
 { TInstanceFactoryTest }
@@ -1007,12 +1041,12 @@ end;
 
 constructor TClassWithPublicAndPublishedConstructors.Create(const Value: TObject);
 begin
-
+  FObjectValue := Value;
 end;
 
 constructor TClassWithPublicAndPublishedConstructors.Create(const Value: Double);
 begin
-
+  FDoubleValue := Value;
 end;
 
 { TClassBase }

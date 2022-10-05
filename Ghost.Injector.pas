@@ -40,14 +40,13 @@ type
     constructor Create(const FactoryFunction: TFactoryFunction<TValue>);
   end;
 
-  TObjectFactory = class(TFactory, IFactory)
+  TInstanceFactory = class(TFactory, IFactory)
   private
-    FObjectType: TRttiInstanceType;
+    FInstance: TValue;
 
     function Construct(const Params: TArray<TValue>): TValue;
-    function FindConstructorCandidate(const Params: TArray<TValue>): TRttiMethod;
   public
-    constructor Create(const RttiType: TRttiInstanceType);
+    constructor Create(const Instance: TValue);
   end;
 
   TInterfaceFactory = class(TFactory, IFactory)
@@ -65,13 +64,14 @@ type
     constructor Create(const Injector: TInjector; const InterfaceType: TRttiInterfaceType);
   end;
 
-  TInstanceFactory = class(TFactory, IFactory)
+  TObjectFactory = class(TFactory, IFactory)
   private
-    FInstance: TValue;
+    FObjectType: TRttiInstanceType;
 
     function Construct(const Params: TArray<TValue>): TValue;
+    function FindConstructorCandidate(const Params: TArray<TValue>; var ConvertedParams: TArray<TValue>): TRttiMethod;
   public
-    constructor Create(const Instance: TValue);
+    constructor Create(const RttiType: TRttiInstanceType);
   end;
 
   TInjector = class
@@ -329,9 +329,11 @@ end;
 { TObjectFactory }
 
 function TObjectFactory.Construct(const Params: TArray<TValue>): TValue;
+var
+  ConvertedParams: TArray<TValue>;
+
 begin
-  var Construcor := FindConstructorCandidate(Params);
-  Result := Construcor.Invoke(FObjectType.MetaclassType, Params).AsObject;
+  Result := FindConstructorCandidate(Params, ConvertedParams).Invoke(FObjectType.MetaclassType, Params).AsObject;
 end;
 
 constructor TObjectFactory.Create(const RttiType: TRttiInstanceType);
@@ -341,16 +343,18 @@ begin
   FObjectType := RttiType;
 end;
 
-function TObjectFactory.FindConstructorCandidate(const Params: TArray<TValue>): TRttiMethod;
+function TObjectFactory.FindConstructorCandidate(const Params: TArray<TValue>; var ConvertedParams: TArray<TValue>): TRttiMethod;
 
-  function SameParameters(const AMethod: TRttiMethod): Boolean;
+  function ConvertParams(const AMethod: TRttiMethod): Boolean;
   begin
     var Parameters := AMethod.GetParameters;
     Result := Length(Parameters) = Length(Params);
 
+    SetLength(ConvertedParams, Length(Parameters));
+
     if Result then
       for var A := Low(Params) to High(Params) do
-        if Parameters[A].ParamType.TypeKind <> Params[A].Kind then
+        if not Params[A].TryCast(Parameters[A].ParamType.Handle, ConvertedParams[A]) then
           Exit(False);
   end;
 
@@ -363,7 +367,7 @@ begin
     begin
       ConstructorFound := ConstructorFound or AMethod.IsConstructor;
 
-      if AMethod.IsConstructor and SameParameters(AMethod) then
+      if AMethod.IsConstructor and ConvertParams(AMethod) then
         Exit(AMethod);
     end;
 
