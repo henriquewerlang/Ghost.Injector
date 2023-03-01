@@ -5,23 +5,18 @@ interface
 uses DUnitX.TestFramework, System.Rtti, Ghost.Injector, System.Classes;
 
 type
-{
-  Injetor
-  - Injetar campos das classes, isso tem que ser via anotação
-    * Criar algum tipo de mapeamento, para quando criar a classe já injetar todos os campos requisitados
-  - Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança
+  {TODO -cInjetor: Injetar campos das classes, isso tem que ser via anotação
+    * Criar algum tipo de mapeamento, para quando criar a classe já injetar todos os campos requisitados}
+  {TODO -cInjetor: Tem um opção de configuração para tentar achar um construtor qualquer, para construir a classe, independente do nível de herança}
+  {TODO -cInjetor: Tem que ser possível passar um enumerador para selecionar um serviço a ser criado
+    * Ver se é possível usar esse esquema em uma anotação -> utilizando um parâmetro Variant, ele aceita construir a anotação}
 
-  Fábrica de interface
-  - Por uma anotação de qual classe deve ser criada
-    * Teria que ser o nome, senão teria problema de referência circular
-  - Registro nomeado tem que ser levado em consideração na busca do objeto para fábrica, não está fazendo isso
+  {TODO -cFábrica de interface: Por uma anotação de qual classe deve ser criada
+    * Teria que ser o nome, senão teria problema de referência circular}
+  {TODO -cFábrica de interface: Registro nomeado tem que ser levado em consideração na busca do objeto para fábrica, não está fazendo isso}
 
-  Fábrica de objeto
-  - Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo
-    * A Rtti já faz essa checagem no TryCast do TValue, ou seja, tem que mudar o FindConstructorCandidate para retornar os parâmetros já convertidos, por que o Invoke não aceita
-      parâmetros de tipo diferente!
-  - Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe
-}
+  {TODO -cFábrica de objeto: Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo}
+  {TODO -cFábrica de objeto: Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe}
 
   [TestFixture]
   TInjectorTest = class
@@ -198,12 +193,12 @@ type
     property Param2: String read FParam2 write FParam2;
   end;
 
-  TClassInheritedWithoutConstructor = class(TClassWithConstructor)
-  private
-    FEmptyProperty: Integer;
-  public
-    property EmptyProperty: Integer read FEmptyProperty write FEmptyProperty;
-  end;
+//  TClassInheritedWithoutConstructor = class(TClassWithConstructor)
+//  private
+//    FEmptyProperty: Integer;
+//  public
+//    property EmptyProperty: Integer read FEmptyProperty write FEmptyProperty;
+//  end;
 
   TClassWithConstructorWithTheSameParameterCount = class
   private
