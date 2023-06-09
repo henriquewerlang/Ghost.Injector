@@ -90,25 +90,25 @@ type
 
     destructor Destroy; override;
 
-    function Resolve<T>: T; overload;
-    function Resolve<T>(const Params: TArray<TValue>): T; overload;
     function Resolve<T>(const FactoryName: String): T; overload;
     function Resolve<T>(const FactoryName: String; const Params: TArray<TValue>): T; overload;
-    function ResolveAll<T>: TArray<T>; overload;
-    function ResolveAll<T>(const Params: TArray<TValue>): TArray<T>; overload;
+    function Resolve<T>(const Params: TArray<TValue>): T; overload;
+    function Resolve<T>: T; overload;
     function ResolveAll<T>(const FactoryName: String): TArray<T>; overload;
     function ResolveAll<T>(const FactoryName: String; const Params: TArray<TValue>): TArray<T>; overload;
+    function ResolveAll<T>(const Params: TArray<TValue>): TArray<T>; overload;
+    function ResolveAll<T>: TArray<T>; overload;
 
-    procedure RegisterFactory<T>; overload;
-    procedure RegisterFactory<T>(const FactoryName: String); overload;
-    procedure RegisterFactory<T>(const Factory: T); overload;
-    procedure RegisterFactory<T>(const FactoryName: String; const Factory: T); overload;
     procedure RegisterFactory<T>(const Factory: IFactory); overload;
-    procedure RegisterFactory<T>(const FactoryName: String; const Factory: IFactory); overload;
+    procedure RegisterFactory<T>(const Factory: T); overload;
     procedure RegisterFactory<T>(const Factory: TFactoryFunction<T>); overload;
-    procedure RegisterFactory<T>(const FactoryName: String; const Factory: TFactoryFunction<T>); overload;
     procedure RegisterFactory<T>(const Factory: TFunc<T>); overload;
+    procedure RegisterFactory<T>(const FactoryName: String); overload;
+    procedure RegisterFactory<T>(const FactoryName: String; const Factory: IFactory); overload;
+    procedure RegisterFactory<T>(const FactoryName: String; const Factory: T); overload;
+    procedure RegisterFactory<T>(const FactoryName: String; const Factory: TFactoryFunction<T>); overload;
     procedure RegisterFactory<T>(const FactoryName: String; const Factory: TFunc<T>); overload;
+    procedure RegisterFactory<T>; overload;
   end;
 
   TRttiObjectHelper = class helper for TRttiObject
