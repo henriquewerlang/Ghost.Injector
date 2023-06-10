@@ -16,7 +16,6 @@ type
   {TODO -cFábrica de interface: Registro nomeado tem que ser levado em consideração na busca do objeto para fábrica, não está fazendo isso}
 
   {TODO -cFábrica de objeto: Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo}
-  {TODO -cFábrica de objeto: Quando resolver uma classe, tem que encontrar todos os tipos esperados no contrutor da classe}
 
   [TestFixture]
   TInjectorTest = class
@@ -41,8 +40,6 @@ type
     procedure WhenRegisterAFactoryInterfaceMustUseThisInterfaceToCreateTheObject;
     [Test]
     procedure WhenRegisterAClassFactoryMustRegisterAFactoryToThisType;
-    [Test]
-    procedure WhenDoNotFindATypeRegisteredMustRaiseAnError;
     [Test]
     procedure WhenTryToResolveATypeNotRegisteredMustFindItInTheRttiAndResolveTheType;
     [Test]
@@ -88,9 +85,14 @@ type
   TObjectFactoryTest = class
   private
     FContext: TRttiContext;
+    FInjector: TInjector;
+
+    function CreateObjectFactory(const AClass: TClass): IFactory;
   public
     [Setup]
     procedure Setup;
+    [TearDown]
+    procedure TearDown;
     [Test]
     procedure WhenCallTheConstructMustCreateTheClassInsideTheFactory;
     [Test]
@@ -120,6 +122,10 @@ type
     procedure WhenTheParamCanBeConvertedInAnotherTypeToCreateCantRaiseAnyError;
     [Test]
     procedure TheValuePassedInTheParamsMustBeConvertedAndPassedToTheObjectContructor;
+    [Test]
+    procedure WhenResolveAnObjectWithoutParamsMustCreateTheObjectWithLastConstructorInTheClass;
+    [Test]
+    procedure WhenResolveAnObjectWithoutParamsMustResolveTheParamsAutomaticAndReturnTheObject;
   end;
 
   [TestFixture]
@@ -193,13 +199,6 @@ type
     property Param2: String read FParam2 write FParam2;
   end;
 
-//  TClassInheritedWithoutConstructor = class(TClassWithConstructor)
-//  private
-//    FEmptyProperty: Integer;
-//  public
-//    property EmptyProperty: Integer read FEmptyProperty write FEmptyProperty;
-//  end;
-
   TClassWithConstructorWithTheSameParameterCount = class
   private
     FIntegerProperty: Integer;
@@ -240,6 +239,32 @@ type
   end;
 
   TClassDerivedMoreOne = class(TClassDerived)
+  end;
+
+  TClassWithMoreConstructors = class
+  private
+    FObject: TObject;
+    FConstructorCalled: String;
+  public
+    constructor Create(const Value: TClassDerivedMoreOne); overload;
+    constructor Create(const Value: TClassDerived); overload;
+    constructor Create(const Value: TObject); overload;
+
+    destructor Destroy; override;
+
+    property ConstructorCalled: String read FConstructorCalled;
+    property &Object: TObject read FObject;
+  end;
+
+  TClassWithObjectConstructor = class
+  private
+    FValue: TClassWithConstructor;
+  public
+    constructor Create(const Value: TClassWithConstructor);
+
+    destructor Destroy; override;
+
+    property Value: TClassWithConstructor read FValue;
   end;
 
   IMyInterface = interface
@@ -285,12 +310,6 @@ begin
   Assert.IsNotNull(AClass);
 
   AClass.Free;
-end;
-
-procedure TInjectorTest.WhenDoNotFindATypeRegisteredMustRaiseAnError;
-begin
-  // Find a way to try to resolve an unregistered class
-  Assert.IsTrue(True);
 end;
 
 procedure TInjectorTest.WhenFindMoreThenOneFactoryForATypeMustRaiseError;
@@ -753,14 +772,27 @@ end;
 
 { TObjectFactoryTest }
 
+function TObjectFactoryTest.CreateObjectFactory(const AClass: TClass): IFactory;
+begin
+  Result := TObjectFactory.Create(FContext, FInjector, FContext.GetType(AClass).AsInstance) as IFactory;
+end;
+
 procedure TObjectFactoryTest.Setup;
 begin
   FContext := TRttiContext.Create;
+  FInjector := TInjector.Create;
+end;
+
+procedure TObjectFactoryTest.TearDown;
+begin
+  FContext.Free;
+
+  FInjector.Free;
 end;
 
 procedure TObjectFactoryTest.TheFactoryCanOnlyUseTheConstructorFromTheCurrentDerivation;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassDerived).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassDerived);
 
   Assert.WillRaise(
     procedure
@@ -773,7 +805,7 @@ end;
 
 procedure TObjectFactoryTest.TheValuePassedInTheParamsMustBeConvertedAndPassedToTheObjectContructor;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithPublicAndPublishedConstructors);
   var TheObject := Factory.Construct([1234]).AsType<TClassWithPublicAndPublishedConstructors>;
 
   Assert.AreEqual<Double>(1234, TheObject.FDoubleValue);
@@ -783,7 +815,7 @@ end;
 
 procedure TObjectFactoryTest.ThisFactoryCanOnlyUsePublicConstructors;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithPublicAndPublishedConstructors);
 
   Assert.WillNotRaise(
     procedure
@@ -802,7 +834,7 @@ end;
 
 procedure TObjectFactoryTest.WhenAClassHasNoConstructorMustSearchInTheBaseClassTheConstructor;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassDerivedMoreOne).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassDerivedMoreOne);
   var TheObject := Factory.Construct([1234]).AsObject;
 
   Assert.IsNotNull(TheObject);
@@ -812,7 +844,7 @@ end;
 
 procedure TObjectFactoryTest.WhenCallTheConstructMustCreateTheClassInsideTheFactory;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TSimpleClass).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TSimpleClass);
   var TheObject := Factory.Construct(nil).AsObject;
 
   Assert.IsNotNull(TheObject);
@@ -822,7 +854,7 @@ end;
 
 procedure TObjectFactoryTest.WhenCantFindAConstructorMustRaiseAnError;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TSimpleClass).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TSimpleClass);
 
   Assert.WillRaise(
     procedure
@@ -831,10 +863,30 @@ begin
     end);
 end;
 
+procedure TObjectFactoryTest.WhenResolveAnObjectWithoutParamsMustCreateTheObjectWithLastConstructorInTheClass;
+begin
+  var Factory := CreateObjectFactory(TClassWithMoreConstructors);
+  var TheObject := Factory.Construct(nil).AsType<TClassWithMoreConstructors>;
+
+  Assert.AreEqual(TObject.ClassName, TheObject.ConstructorCalled);
+
+  TheObject.Free;
+end;
+
+procedure TObjectFactoryTest.WhenResolveAnObjectWithoutParamsMustResolveTheParamsAutomaticAndReturnTheObject;
+begin
+  var Factory := CreateObjectFactory(TClassWithObjectConstructor);
+  var TheObject := Factory.Construct(nil).AsType<TClassWithObjectConstructor>;
+
+  Assert.IsNotNull(TheObject.Value);
+
+  TheObject.Free;
+end;
+
 procedure TObjectFactoryTest.WhenTheClassConstructorHasParamsThisParamsMustBePassedInTheInvokerOfTheConstuctor;
 begin
   var AnObject := TObject.Create;
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithParamsInConstructor).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithParamsInConstructor);
   var TheObject := Factory.Construct([AnObject, 1234]).AsType<TClassWithParamsInConstructor>;
 
   Assert.IsNotNull(TheObject);
@@ -850,7 +902,7 @@ end;
 
 procedure TObjectFactoryTest.WhenTheClassDontHaveAnyPublicConstructorsMustRaiseError;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPrivateAndProtectedConstructors).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithPrivateAndProtectedConstructors);
 
   Assert.WillRaise(
     procedure
@@ -869,7 +921,7 @@ end;
 
 procedure TObjectFactoryTest.WhenTheClassHasAConstrutorMustCallThisConstructorOnTheFactory;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithConstructor).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithConstructor);
   var TheObject := Factory.Construct(nil).AsType<TClassWithConstructor>;
 
   Assert.IsTrue(TheObject.TheConstructorCalled);
@@ -879,7 +931,7 @@ end;
 
 procedure TObjectFactoryTest.WhenTheClassHasMoreThenOneContructorMustSelectTheConstructorByTheCountOfTheParams(ExpectParam1: Integer; ExpectParam2: String; ParamValue1: Integer; ParamValue2: String);
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithThreeContructors).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithThreeContructors);
   var Params: TArray<TValue> := nil;
 
   if ParamValue1 > 0 then
@@ -907,7 +959,7 @@ end;
 
 procedure TObjectFactoryTest.WhenTheClassHasMoreThenOneContructorWithSameQuantityOfParamsMustSelectTheConstructorByTheParamType(const IntegerParam: Integer; const StringParam: String);
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithConstructorWithTheSameParameterCount).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithConstructorWithTheSameParameterCount);
   var Param: TValue;
 
   if IntegerParam > 0 then
@@ -928,7 +980,7 @@ end;
 
 procedure TObjectFactoryTest.WhenTheConstructorParamsIsntTheSameMustRaiseExceptionOfMismatchParams;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithPublicAndPublishedConstructors);
 
   Assert.WillRaise(
     procedure
@@ -941,7 +993,7 @@ end;
 
 procedure TObjectFactoryTest.WhenTheParamCanBeConvertedInAnotherTypeToCreateCantRaiseAnyError;
 begin
-  var Factory := TObjectFactory.Create(FContext.GetType(TClassWithPublicAndPublishedConstructors).AsInstance) as IFactory;
+  var Factory := CreateObjectFactory(TClassWithPublicAndPublishedConstructors);
   var TheObject: TObject := nil;
 
   Assert.WillNotRaise(
@@ -1056,6 +1108,47 @@ end;
 constructor TClassDerived.Create(const Value: Integer);
 begin
 
+end;
+
+{ TClassWithObjectConstructor }
+
+constructor TClassWithObjectConstructor.Create(const Value: TClassWithConstructor);
+begin
+  FValue := Value;
+end;
+
+destructor TClassWithObjectConstructor.Destroy;
+begin
+  FValue.Free;
+
+  inherited;
+end;
+
+{ TClassWithMoreConstructors }
+
+constructor TClassWithMoreConstructors.Create(const Value: TClassDerivedMoreOne);
+begin
+  FConstructorCalled := 'TClassDerivedMoreOne';
+  FObject := Value;
+end;
+
+constructor TClassWithMoreConstructors.Create(const Value: TClassDerived);
+begin
+  FConstructorCalled := 'TClassDerived';
+  FObject := Value;
+end;
+
+constructor TClassWithMoreConstructors.Create(const Value: TObject);
+begin
+  FConstructorCalled := 'TObject';
+  FObject := Value;
+end;
+
+destructor TClassWithMoreConstructors.Destroy;
+begin
+  FObject.Free;
+
+  inherited;
 end;
 
 end.

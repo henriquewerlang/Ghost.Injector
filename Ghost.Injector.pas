@@ -66,12 +66,14 @@ type
 
   TObjectFactory = class(TFactory, IFactory)
   private
+    FContext: TRttiContext;
+    FInjector: TInjector;
     FObjectType: TRttiInstanceType;
 
     function Construct(const Params: TArray<TValue>): TValue;
     function FindConstructorCandidate(const Params: TArray<TValue>; var ConvertedParams: TArray<TValue>): TRttiMethod;
   public
-    constructor Create(const RttiType: TRttiInstanceType);
+    constructor Create(const Context: TRttiContext; const Injector: TInjector; const RttiType: TRttiInstanceType);
   end;
 
   TInjector = class
@@ -85,6 +87,7 @@ type
     function GetRegisterName(const FactoryName: String; const AType: TRttiStructuredType): String;
     function GetStructuredType<T>: TRttiStructuredType; inline;
     function RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TList<IFactory>; overload;
+    function Resolve(const FactoryName: String; const &Type: TRttiStructuredType; const Params: TArray<TValue>): TValue; overload;
   public
     constructor Create;
 
@@ -144,7 +147,7 @@ begin
   if AType.IsInterface then
     Result := TInterfaceFactory.Create(Self, AType.AsInterface)
   else
-    Result := TObjectFactory.Create(AType.AsInstance);
+    Result := TObjectFactory.Create(FContext, Self, AType.AsInstance);
 end;
 
 destructor TInjector.Destroy;
@@ -219,6 +222,11 @@ begin
   RegisterFactory<T>(EmptyStr);
 end;
 
+function TInjector.Resolve(const FactoryName: String; const &Type: TRttiStructuredType; const Params: TArray<TValue>): TValue;
+begin
+  Result := GetFactory(FactoryName, &Type).Construct(Params);
+end;
+
 function TInjector.Resolve<T>: T;
 begin
   Result := Resolve<T>(nil);
@@ -236,7 +244,7 @@ end;
 
 function TInjector.Resolve<T>(const FactoryName: String; const Params: TArray<TValue>): T;
 begin
-  Result := GetFactory(FactoryName, GetStructuredType<T>).Construct(Params).AsType<T>
+  Result := Resolve(FactoryName, GetStructuredType<T>, Params).AsType<T>;
 end;
 
 function TInjector.ResolveAll<T>: TArray<T>;
@@ -329,52 +337,77 @@ end;
 { TObjectFactory }
 
 function TObjectFactory.Construct(const Params: TArray<TValue>): TValue;
-var
-  ConvertedParams: TArray<TValue>;
-
 begin
-  Result := FindConstructorCandidate(Params, ConvertedParams).Invoke(FObjectType.MetaclassType, Params).AsObject;
+  var ConvertedParams: TArray<TValue> := nil;
+
+  Result := FindConstructorCandidate(Params, ConvertedParams).Invoke(FObjectType.MetaclassType, ConvertedParams).AsObject;
 end;
 
-constructor TObjectFactory.Create(const RttiType: TRttiInstanceType);
+constructor TObjectFactory.Create(const Context: TRttiContext; const Injector: TInjector; const RttiType: TRttiInstanceType);
 begin
   inherited Create;
 
+  FContext := Context;
+  FInjector := Injector;
   FObjectType := RttiType;
 end;
 
 function TObjectFactory.FindConstructorCandidate(const Params: TArray<TValue>; var ConvertedParams: TArray<TValue>): TRttiMethod;
+var
+  DefaultConstructor: TRttiMethod;
 
   function ConvertParams(const AMethod: TRttiMethod): Boolean;
   begin
     var Parameters := AMethod.GetParameters;
     Result := Length(Parameters) = Length(Params);
 
-    SetLength(ConvertedParams, Length(Parameters));
-
     if Result then
+    begin
+      SetLength(ConvertedParams, Length(Parameters));
+
       for var A := Low(Params) to High(Params) do
         if not Params[A].TryCast(Parameters[A].ParamType.Handle, ConvertedParams[A]) then
           Exit(False);
+    end;
+  end;
+
+  procedure ResolveAllParams;
+  begin
+    var Parameters := DefaultConstructor.GetParameters;
+
+    SetLength(ConvertedParams, Length(DefaultConstructor.GetParameters));
+
+    for var A := Low(Parameters) to High(Parameters) do
+      ConvertedParams[A] := FInjector.Resolve(EmptyStr, Parameters[A].ParamType as TRttiStructuredType, nil);
   end;
 
 begin
   var ConstructorFound := False;
   var CurrentType := FObjectType;
+  DefaultConstructor := nil;
 
   repeat
     for var AMethod in CurrentType.GetDeclaredMethods do
-    begin
-      ConstructorFound := ConstructorFound or AMethod.IsConstructor;
+      if AMethod.IsConstructor then
+      begin
+        ConstructorFound := True;
+        DefaultConstructor := AMethod;
 
-      if AMethod.IsConstructor and ConvertParams(AMethod) then
-        Exit(AMethod);
-    end;
+        if ConvertParams(AMethod) then
+          Exit(AMethod);
+      end;
 
     CurrentType := CurrentType.BaseType;
   until ConstructorFound;
 
-  raise EConstructorParamsMismatch.Create(FObjectType);
+  if Assigned(DefaultConstructor) and (Params = nil) then
+  begin
+    ResolveAllParams;
+
+    Exit(DefaultConstructor);
+  end
+  else
+    raise EConstructorParamsMismatch.Create(FObjectType);
 end;
 
 { TInterfaceFactory }
