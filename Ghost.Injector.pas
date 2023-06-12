@@ -85,7 +85,6 @@ type
     function FindFactories(const FactoryName: String; const AType: TRttiStructuredType): TList<IFactory>;
     function GetFactory(const FactoryName: String; const AType: TRttiStructuredType): IFactory;
     function GetRegisterName(const FactoryName: String; const AType: TRttiStructuredType): String;
-    function GetStructuredType<T>: TRttiStructuredType; inline;
     function RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TList<IFactory>; overload;
     function Resolve(const FactoryName: String; const &Type: TRttiStructuredType; const Params: TArray<TValue>): TValue; overload;
   public
@@ -118,8 +117,10 @@ type
   private
     function GetIsInterface: Boolean; inline;
     function GetAsInterface: TRttiInterfaceType; inline;
+    function GetAsAsStrutured: TRttiStructuredType;
   public
     property AsInterface: TRttiInterfaceType read GetAsInterface;
+    property AsStrutured: TRttiStructuredType read GetAsAsStrutured;
     property IsInterface: Boolean read GetIsInterface;
   end;
 
@@ -183,11 +184,6 @@ begin
   Result := Format('%s-%s', [AType.QualifiedName, FactoryName]);
 end;
 
-function TInjector.GetStructuredType<T>: TRttiStructuredType;
-begin
-  Result := FContext.GetType(TypeInfo(T)) as TRttiStructuredType;
-end;
-
 procedure TInjector.RegisterFactory<T>(const Factory: T);
 begin
   RegisterFactory(EmptyStr, Factory);
@@ -244,7 +240,7 @@ end;
 
 function TInjector.Resolve<T>(const FactoryName: String; const Params: TArray<TValue>): T;
 begin
-  Result := Resolve(FactoryName, GetStructuredType<T>, Params).AsType<T>;
+  Result := Resolve(FactoryName, FContext.GetType(TypeInfo(T)).AsStrutured, Params).AsType<T>;
 end;
 
 function TInjector.ResolveAll<T>: TArray<T>;
@@ -266,7 +262,7 @@ function TInjector.ResolveAll<T>(const FactoryName: String; const Params: TArray
 begin
   Result := nil;
 
-  for var Factory in FindFactories(FactoryName, GetStructuredType<T>) do
+  for var Factory in FindFactories(FactoryName, FContext.GetType(TypeInfo(T)).AsStrutured) do
     Result := Result + [Factory.Construct(Params).AsType<T>];
 end;
 
@@ -277,7 +273,7 @@ end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String);
 begin
-  RegisterFactory<T>(FactoryName, CreateFactory(FactoryName, GetStructuredType<T>));
+  RegisterFactory<T>(FactoryName, CreateFactory(FactoryName, FContext.GetType(TypeInfo(T)).AsStrutured));
 end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String; const Factory: TFactoryFunction<T>);
@@ -305,10 +301,15 @@ end;
 
 procedure TInjector.RegisterFactory<T>(const FactoryName: String; const Factory: IFactory);
 begin
-  RegisterFactory(FactoryName, GetStructuredType<T>, Factory);
+  RegisterFactory(FactoryName, FContext.GetType(TypeInfo(T)).AsStrutured, Factory);
 end;
 
 { TRttiObjectHelper }
+
+function TRttiObjectHelper.GetAsAsStrutured: TRttiStructuredType;
+begin
+  Result := Self as TRttiStructuredType;
+end;
 
 function TRttiObjectHelper.GetAsInterface: TRttiInterfaceType;
 begin
@@ -378,7 +379,7 @@ var
     SetLength(ConvertedParams, Length(DefaultConstructor.GetParameters));
 
     for var A := Low(Parameters) to High(Parameters) do
-      ConvertedParams[A] := FInjector.Resolve(EmptyStr, Parameters[A].ParamType as TRttiStructuredType, nil);
+      ConvertedParams[A] := FInjector.Resolve(EmptyStr, Parameters[A].ParamType.AsStrutured, nil);
   end;
 
 begin
