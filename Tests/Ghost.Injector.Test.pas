@@ -66,6 +66,8 @@ type
     procedure WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatType;
     [Test]
     procedure WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatTypeWithTheParamPassed;
+    [Test]
+    procedure WhenRegisterAFactoryMustFillTheInjectorOfTheFactory;
   end;
 
   [TestFixture]
@@ -161,6 +163,8 @@ type
     procedure TheFunctionIsInterfaceMustReturnTrueIfTheTypeIsAnInterface;
     [Test]
     procedure ThePropertyAsInterfaceMustConvertTheCurrentObjectInAnInterfaceRttiType;
+    [Test]
+    procedure ThePropertyAsStruturedMustReturnTheTRttiStructuredType;
   end;
 
   TSimpleClass = class
@@ -347,6 +351,17 @@ begin
   FInjector.RegisterFactory<TSimpleClass>(AFactory.Instance);
 
   FInjector.Resolve<TSimpleClass>.Free;
+
+  Assert.CheckExpectation(AFactory.CheckExpectations);
+end;
+
+procedure TInjectorTest.WhenRegisterAFactoryMustFillTheInjectorOfTheFactory;
+begin
+  var AFactory := TMock.CreateInterface<IFactory>(True);
+
+  AFactory.Expect.Once.When.SetInjector(It.IsEqualTo(FInjector));
+
+  FInjector.RegisterFactory<TSimpleClass>(AFactory.Instance);
 
   Assert.CheckExpectation(AFactory.CheckExpectations);
 end;
@@ -774,7 +789,8 @@ end;
 
 function TObjectFactoryTest.CreateObjectFactory(const AClass: TClass): IFactory;
 begin
-  Result := TObjectFactory.Create(FContext, FInjector, FContext.GetType(AClass).AsInstance) as IFactory;
+  Result := TObjectFactory.Create(FContext.GetType(AClass).AsInstance) as IFactory;
+  Result.Injector := FInjector;
 end;
 
 procedure TObjectFactoryTest.Setup;
@@ -1032,9 +1048,11 @@ end;
 
 procedure TInterfaceFactoryTest.WhenConstructTheInterfaceMustLocateTheObjectThatImplementsTheInterface;
 begin
+  var Factory := TInterfaceFactory.Create(FContext.GetType(TypeInfo(IMyInterface)).AsInterface) as IFactory;
   var Injector := TInjector.Create;
 
-  var Factory := TInterfaceFactory.Create(Injector, FContext.GetType(TypeInfo(IMyInterface)) as TRttiInterfaceType) as IFactory;
+  Factory.Injector := Injector;
+
   var MyInterface := Factory.Construct(nil);
 
   Assert.IsFalse(MyInterface.IsEmpty);
@@ -1070,6 +1088,15 @@ begin
   Assert.IsNotNull(AType);
 
   Assert.AreEqual(TRttiInterfaceType, AType.ClassType);
+end;
+
+procedure TRttiObjectHelperTest.ThePropertyAsStruturedMustReturnTheTRttiStructuredType;
+begin
+  var AType := FContext.GetType(TypeInfo(IMyInterface)).AsStrutured;
+
+  Assert.IsNotNull(AType);
+
+  Assert.IsTrue(AType.ClassType.InheritsFrom(TRttiStructuredType));
 end;
 
 { TClassWithPrivateAndProtectedConstructor }
