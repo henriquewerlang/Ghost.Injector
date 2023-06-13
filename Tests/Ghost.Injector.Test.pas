@@ -68,6 +68,8 @@ type
     procedure WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatTypeWithTheParamPassed;
     [Test]
     procedure WhenRegisterAFactoryMustFillTheInjectorOfTheFactory;
+    [Test]
+    procedure WhenResolveTheInjectorMustReturnTheInjectorItSelf;
   end;
 
   [TestFixture]
@@ -627,6 +629,13 @@ begin
   Assert.IsNotNull(AClass);
 
   AClass.Free;
+end;
+
+procedure TInjectorTest.WhenResolveTheInjectorMustReturnTheInjectorItSelf;
+begin
+  var Injector := FInjector.Resolve<TInjector>;
+
+  Assert.AreEqual(Injector, FInjector);
 end;
 
 procedure TInjectorTest.WhenTryToRegisterTheSameFactoryMoreThenOnceCannnotRaiseAnyError;
