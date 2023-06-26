@@ -4,6 +4,7 @@
 [submodule "Externals/FastMM5"]
 	path = Externals/FastMM5
 	url = https://github.com/pleriche/FastMM5.git
-[submodule "Externals/Delphi.Mock"]
-	path = Externals/Delphi.Mock
-	url = https://github.com/henriquewerlang/Delphi.Mock.git
+[submodule "Externals/Translucent"]
+	path = Externals/Translucent
+	url = https://github.com/henriquewerlang/Translucent.git
+	branch = master
