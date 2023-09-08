@@ -91,12 +91,12 @@ type
     function GetFactory(const FactoryName: String; const AType: TRttiStructuredType): IFactory;
     function GetRegisterName(const FactoryName: String; const AType: TRttiStructuredType): String;
     function RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TList<IFactory>; overload;
-    function Resolve(const FactoryName: String; const &Type: TRttiStructuredType; const Params: TArray<TValue>): TValue; overload;
   public
     constructor Create;
 
     destructor Destroy; override;
 
+    function Resolve(const FactoryName: String; const &Type: TRttiStructuredType; const Params: TArray<TValue>): TValue; overload;
     function Resolve<T>(const FactoryName: String): T; overload;
     function Resolve<T>(const FactoryName: String; const Params: TArray<TValue>): T; overload;
     function Resolve<T>(const Params: TArray<TValue>): T; overload;
