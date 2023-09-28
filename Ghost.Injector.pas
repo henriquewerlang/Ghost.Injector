@@ -100,6 +100,7 @@ type
     function Resolve<T>(const FactoryName: String): T; overload;
     function Resolve<T>(const FactoryName: String; const Params: TArray<TValue>): T; overload;
     function Resolve<T>(const Params: TArray<TValue>): T; overload;
+    function Resolve<T>(const Params: array of const): T; overload;
     function Resolve<T>: T; overload;
     function ResolveAll<T>(const FactoryName: String): TArray<T>; overload;
     function ResolveAll<T>(const FactoryName: String; const Params: TArray<TValue>): TArray<T>; overload;
@@ -127,6 +128,11 @@ type
     property AsInterface: TRttiInterfaceType read GetAsInterface;
     property AsStrutured: TRttiStructuredType read GetAsAsStrutured;
     property IsInterface: Boolean read GetIsInterface;
+  end;
+
+  TValueHelper = record helper for TValue
+  public
+    class function FromConst(const Params: array of const): TArray<TValue>; static;
   end;
 
 implementation
@@ -234,6 +240,11 @@ end;
 function TInjector.Resolve<T>: T;
 begin
   Result := Resolve<T>(nil);
+end;
+
+function TInjector.Resolve<T>(const Params: array of const): T;
+begin
+  Result := Resolve<T>(TValue.FromConst(Params));
 end;
 
 function TInjector.Resolve<T>(const Params: TArray<TValue>): T;
@@ -483,6 +494,16 @@ end;
 constructor EConstructorParamsMismatch.Create(const AType: TRttiType);
 begin
   inherited CreateFmt('The constructor params mismatch for the type %s!', [AType.QualifiedName]);
+end;
+
+{ TValueHelper }
+
+class function TValueHelper.FromConst(const Params: array of const): TArray<TValue>;
+begin
+  SetLength(Result, Length(Params));
+
+  for var A := Low(Params) to High(Params) do
+    Result[A] := TValue.FromVarRec(Params[A]);
 end;
 
 end.
