@@ -87,7 +87,7 @@
         <UsingDelphiRTL>true</UsingDelphiRTL>
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
         <Icns_MainIcns>$(BDS)\bin\delphi_PROJECTICNS.icns</Icns_MainIcns>
-        <DCC_UnitSearchPath>..\Externals\DUnitX\Source;..\Externals\FastMM5;..\Externals\Delphi.Mock;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\Externals\DUnitX\Source;..\Externals\FastMM5;..\Externals\Translucent;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_Define>TESTINSIGHT;USE_NS;$(DCC_Define)</DCC_Define>
         <SanitizedProjectName>Ghost_Injector_Tests</SanitizedProjectName>
         <VerInfo_Locale>1046</VerInfo_Locale>
@@ -187,7 +187,10 @@
                 <Source>
                     <Source Name="MainSource">Ghost.Injector.Tests.dpr</Source>
                 </Source>
-                <Excluded_Packages/>
+                <Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k280.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp280.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="4">
                 <DeployFile LocalName="$(BDS)\Redist\iossimulator\libcgunwind.1.0.dylib" Class="DependencyModule">

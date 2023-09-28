@@ -287,7 +287,7 @@ type
 
 implementation
 
-uses System.TypInfo, System.SysUtils, Delphi.Mock;
+uses System.TypInfo, System.SysUtils, Translucent;
 
 { TInjectorTest }
 
