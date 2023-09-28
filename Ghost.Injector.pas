@@ -381,9 +381,30 @@ function TObjectFactory.FindConstructorCandidate(const Params: TArray<TValue>; v
 var
   DefaultConstructor: TRttiMethod;
 
+  Parameters: TArray<TRttiParameter>;
+
+  function TryConvertParamToInterface(const Index: Integer): Boolean;
+  var
+    Output: IInterface;
+
+  begin
+    Result := Supports(Params[Index].AsInterface, Parameters[Index].ParamType.AsInterface.GUID, Output);
+
+    if Result then
+      TValue.Make(@Output, Parameters[Index].ParamType.Handle, ConvertedParams[Index]);
+  end;
+
+  function TryToConvertParam(const Index: Integer): Boolean;
+  begin
+    if Parameters[Index].ParamType.IsInterface then
+      Result := TryConvertParamToInterface(Index)
+    else
+      Result := Params[Index].TryCast(Parameters[Index].ParamType.Handle, ConvertedParams[Index]);
+  end;
+
   function ConvertParams(const AMethod: TRttiMethod): Boolean;
   begin
-    var Parameters := AMethod.GetParameters;
+    Parameters := AMethod.GetParameters;
     Result := Length(Parameters) = Length(Params);
 
     if Result then
@@ -391,7 +412,7 @@ var
       SetLength(ConvertedParams, Length(Parameters));
 
       for var A := Low(Params) to High(Params) do
-        if not Params[A].TryCast(Parameters[A].ParamType.Handle, ConvertedParams[A]) then
+        if not TryToConvertParam(A) then
           Exit(False);
     end;
   end;

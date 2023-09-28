@@ -70,6 +70,8 @@ type
     procedure WhenRegisterAFactoryMustFillTheInjectorOfTheFactory;
     [Test]
     procedure WhenResolveTheInjectorMustReturnTheInjectorItSelf;
+    [Test]
+    procedure WhenTheConstructorNeedAnInterfaceMustTryToConvertTheParamToTheExpectedInterface;
   end;
 
   [TestFixture]
@@ -284,6 +286,11 @@ type
   TClassNotRegistered = class
   end;
   {$M+}
+
+  TMyClassWithInterfaceInConstructor = class
+  public
+    constructor Create(const Param: IMyInterface);
+  end;
 
 implementation
 
@@ -636,6 +643,15 @@ begin
   var Injector := FInjector.Resolve<TInjector>;
 
   Assert.AreEqual(Injector, FInjector);
+end;
+
+procedure TInjectorTest.WhenTheConstructorNeedAnInterfaceMustTryToConvertTheParamToTheExpectedInterface;
+begin
+  Assert.WillNotRaise(
+    procedure
+    begin
+      FInjector.Resolve<TMyClassWithInterfaceInConstructor>([TMyObjectInterface.Create as IMyInterface]);
+    end);
 end;
 
 procedure TInjectorTest.WhenTryToRegisterTheSameFactoryMoreThenOnceCannnotRaiseAnyError;
@@ -1185,6 +1201,13 @@ begin
   FObject.Free;
 
   inherited;
+end;
+
+{ TMyClassWithInterfaceInConstructor }
+
+constructor TMyClassWithInterfaceInConstructor.Create(const Param: IMyInterface);
+begin
+
 end;
 
 end.
