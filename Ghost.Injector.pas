@@ -26,17 +26,9 @@ type
 
   IFactory = interface
     function Construct(const Params: TArray<TValue>): TValue;
-
-    procedure SetInjector(const Injector: TInjector);
-
-    property Injector: TInjector write SetInjector;
   end;
 
   TFactory = class(TInterfacedObject)
-  private
-    FInjector: TInjector;
-
-    procedure SetInjector(const Injector: TInjector);
   end;
 
   TFunctionFactory = class(TFactory, IFactory)
@@ -60,6 +52,7 @@ type
   TInterfaceFactory = class(TFactory, IFactory)
   private
     FFactory: IFactory;
+    FInjector: TInjector;
     FInterfaceType: TRttiInterfaceType;
 
     function Construct(const Params: TArray<TValue>): TValue;
@@ -68,17 +61,18 @@ type
 
     property Factory: IFactory read GetFactory;
   public
-    constructor Create(const InterfaceType: TRttiInterfaceType);
+    constructor Create(const Injector: TInjector; const InterfaceType: TRttiInterfaceType);
   end;
 
   TObjectFactory = class(TFactory, IFactory)
   private
+    FInjector: TInjector;
     FObjectType: TRttiInstanceType;
 
     function Construct(const Params: TArray<TValue>): TValue;
     function FindConstructorCandidate(const Params: TArray<TValue>; var ConvertedParams: TArray<TValue>): TRttiMethod;
   public
-    constructor Create(const RttiType: TRttiInstanceType);
+    constructor Create(const Injector: TInjector; const RttiType: TRttiInstanceType);
   end;
 
   TInjector = class
@@ -159,9 +153,9 @@ end;
 function TInjector.CreateFactory(const AType: TRttiStructuredType): IFactory;
 begin
   if AType.IsInterface then
-    Result := TInterfaceFactory.Create(AType.AsInterface)
+    Result := TInterfaceFactory.Create(Self, AType.AsInterface)
   else
-    Result := TObjectFactory.Create(AType.AsInstance);
+    Result := TObjectFactory.Create(Self, AType.AsInstance);
 end;
 
 destructor TInjector.Destroy;
@@ -209,7 +203,6 @@ end;
 
 function TInjector.RegisterFactory(const FactoryName: String; const AType: TRttiStructuredType; const Factory: IFactory): TList<IFactory>;
 begin
-  Factory.Injector := Self;
   var RegisterName := GetRegisterName(FactoryName, AType);
 
   if not FRegisteredTypes.TryGetValue(RegisterName, Result) then
@@ -340,13 +333,6 @@ begin
   Result := Self is TRttiInterfaceType;
 end;
 
-{ TFactory }
-
-procedure TFactory.SetInjector(const Injector: TInjector);
-begin
-  FInjector := Injector;
-end;
-
 { TFunctionFactory }
 
 function TFunctionFactory.Construct(const Params: TArray<TValue>): TValue;
@@ -370,10 +356,11 @@ begin
   Result := FindConstructorCandidate(Params, ConvertedParams).Invoke(FObjectType.MetaclassType, ConvertedParams).AsObject;
 end;
 
-constructor TObjectFactory.Create(const RttiType: TRttiInstanceType);
+constructor TObjectFactory.Create(const Injector: TInjector; const RttiType: TRttiInstanceType);
 begin
   inherited Create;
 
+  FInjector := Injector;
   FObjectType := RttiType;
 end;
 
@@ -463,10 +450,11 @@ begin
   Result := Factory.Construct(Params);
 end;
 
-constructor TInterfaceFactory.Create(const InterfaceType: TRttiInterfaceType);
+constructor TInterfaceFactory.Create(const Injector: TInjector; const InterfaceType: TRttiInterfaceType);
 begin
   inherited Create;
 
+  FInjector := Injector;
   FInterfaceType := InterfaceType;
 end;
 

@@ -67,8 +67,6 @@ type
     [Test]
     procedure WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatTypeWithTheParamPassed;
     [Test]
-    procedure WhenRegisterAFactoryMustFillTheInjectorOfTheFactory;
-    [Test]
     procedure WhenResolveTheInjectorMustReturnTheInjectorItSelf;
     [Test]
     procedure WhenTheConstructorNeedAnInterfaceMustTryToConvertTheParamToTheExpectedInterface;
@@ -360,17 +358,6 @@ begin
   FInjector.RegisterFactory<TSimpleClass>(AFactory.Instance);
 
   FInjector.Resolve<TSimpleClass>.Free;
-
-  Assert.CheckExpectation(AFactory.CheckExpectations);
-end;
-
-procedure TInjectorTest.WhenRegisterAFactoryMustFillTheInjectorOfTheFactory;
-begin
-  var AFactory := TMock.CreateInterface<IFactory>(True);
-
-  AFactory.Expect.Once.When.SetInjector(It.IsEqualTo(FInjector));
-
-  FInjector.RegisterFactory<TSimpleClass>(AFactory.Instance);
 
   Assert.CheckExpectation(AFactory.CheckExpectations);
 end;
@@ -814,8 +801,7 @@ end;
 
 function TObjectFactoryTest.CreateObjectFactory(const AClass: TClass): IFactory;
 begin
-  Result := TObjectFactory.Create(FContext.GetType(AClass).AsInstance) as IFactory;
-  Result.Injector := FInjector;
+  Result := TObjectFactory.Create(FInjector, FContext.GetType(AClass).AsInstance) as IFactory;
 end;
 
 procedure TObjectFactoryTest.Setup;
@@ -1073,10 +1059,9 @@ end;
 
 procedure TInterfaceFactoryTest.WhenConstructTheInterfaceMustLocateTheObjectThatImplementsTheInterface;
 begin
-  var Factory := TInterfaceFactory.Create(FContext.GetType(TypeInfo(IMyInterface)).AsInterface) as IFactory;
   var Injector := TInjector.Create;
 
-  Factory.Injector := Injector;
+  var Factory := TInterfaceFactory.Create(Injector, FContext.GetType(TypeInfo(IMyInterface)).AsInterface) as IFactory;
 
   var MyInterface := Factory.Construct(nil);
 
