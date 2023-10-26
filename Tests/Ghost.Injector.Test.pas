@@ -74,6 +74,8 @@ type
     procedure WhenTheInterfaceHasNotAnObjectThatImplementTheInterfaceMustRaiseAnError;
     [Test]
     procedure WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
+    [Test]
+    procedure WhenRegisterASingletonFactoryTheFactoryConstructorMustBeCallOnlyOneTime;
   end;
 
   [TestFixture]
@@ -156,8 +158,17 @@ type
     procedure TheFunctionIsInterfaceMustReturnTrueIfTheTypeIsAnInterface;
     [Test]
     procedure ThePropertyAsInterfaceMustConvertTheCurrentObjectInAnInterfaceRttiType;
+  end;
+
+  [TestFixture]
+  TSingletonFactoryTest = class
+  public
     [Test]
-    procedure ThePropertyAsStruturedMustReturnTheTRttiStructuredType;
+    procedure WhenConstructTheFactoryMustPassTheParamsToTheInternalFactory;
+    [Test]
+    procedure TheConstructorOfTheFactoryMustBeCalledOnlyOnce;
+    [Test]
+    procedure TheConstructorMustReturnTheFactoryValue;
   end;
 
   TSimpleClass = class
@@ -461,6 +472,29 @@ begin
   AClass.Free;
 end;
 
+procedure TInjectorTest.WhenRegisterASingletonFactoryTheFactoryConstructorMustBeCallOnlyOneTime;
+begin
+  var FunctionCalled := 0;
+
+  FInjector.RegisterFactory<TSimpleClass>(
+    function: TSimpleClass
+    begin
+      Result := nil;
+
+      Inc(FunctionCalled);
+    end).AsSingleton;
+
+  FInjector.Resolve<TSimpleClass>;
+
+  FInjector.Resolve<TSimpleClass>;
+
+  FInjector.Resolve<TSimpleClass>;
+
+  FInjector.Resolve<TSimpleClass>;
+
+  Assert.AreEqual(1, FunctionCalled);
+end;
+
 procedure TInjectorTest.WhenRegisterATypeNamedFactoryMustUseTheNamedFactoryToCreateTheType;
 begin
   FInjector.RegisterFactory<TSimpleClass>('MyFactory');
@@ -644,7 +678,7 @@ begin
   Assert.WillNotRaise(
     procedure
     begin
-      FInjector.Resolve<TMyClassWithInterfaceInConstructor>([TMyObjectInterface.Create as IMyInterface]);
+      FInjector.Resolve<TMyClassWithInterfaceInConstructor>([TMyObjectInterface.Create as IMyInterface]).Free;
     end);
 end;
 
@@ -1089,15 +1123,6 @@ begin
   Assert.AreEqual(TRttiInterfaceType, AType.ClassType);
 end;
 
-procedure TRttiObjectHelperTest.ThePropertyAsStruturedMustReturnTheTRttiStructuredType;
-begin
-  var AType := FContext.GetType(TypeInfo(IMyInterface)).AsStrutured;
-
-  Assert.IsNotNull(AType);
-
-  Assert.IsTrue(AType.ClassType.InheritsFrom(TRttiStructuredType));
-end;
-
 { TClassWithPrivateAndProtectedConstructor }
 
 constructor TClassWithPrivateAndProtectedConstructors.Create(const Value: String);
@@ -1182,6 +1207,61 @@ end;
 constructor TMyClassWithInterfaceInConstructor.Create(const Param: IMyInterface);
 begin
 
+end;
+
+{ TSingletonFactoryTest }
+
+procedure TSingletonFactoryTest.TheConstructorMustReturnTheFactoryValue;
+begin
+  var Factory := TFunctionFactory.Create(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      Result := 10;
+    end);
+  var SingletonFactory := TSingletonFactory.Create(Factory) as IFactory;
+
+  var Value := SingletonFactory.Construct(nil);
+
+  Assert.AreEqual(10, Value.AsInteger);
+end;
+
+procedure TSingletonFactoryTest.TheConstructorOfTheFactoryMustBeCalledOnlyOnce;
+begin
+  var PassCount := 0;
+
+  var Factory := TFunctionFactory.Create(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      Result := 0;
+
+      Inc(PassCount);
+    end);
+  var SingletonFactory := TSingletonFactory.Create(Factory) as IFactory;
+
+  SingletonFactory.Construct(nil);
+
+  SingletonFactory.Construct(nil);
+
+  SingletonFactory.Construct(nil);
+
+  Assert.AreEqual(1, PassCount);
+end;
+
+procedure TSingletonFactoryTest.WhenConstructTheFactoryMustPassTheParamsToTheInternalFactory;
+begin
+  var ParamCount := 0;
+
+  var Factory := TFunctionFactory.Create(
+    function (const Params: TArray<TValue>): TValue
+    begin
+      ParamCount := Length(Params);
+      Result := 0;
+    end);
+  var SingletonFactory := TSingletonFactory.Create(Factory) as IFactory;
+
+  SingletonFactory.Construct([1, 2]);
+
+  Assert.AreEqual(2, ParamCount);
 end;
 
 end.
