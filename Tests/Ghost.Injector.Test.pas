@@ -70,6 +70,10 @@ type
     procedure WhenResolveTheInjectorMustReturnTheInjectorItSelf;
     [Test]
     procedure WhenTheConstructorNeedAnInterfaceMustTryToConvertTheParamToTheExpectedInterface;
+    [Test]
+    procedure WhenTheInterfaceHasNotAnObjectThatImplementTheInterfaceMustRaiseAnError;
+    [Test]
+    procedure WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
   end;
 
   [TestFixture]
@@ -137,19 +141,6 @@ type
   public
     [Test]
     procedure WhenCallTheFactoryConstructorMustReturnTheInstanceOfTheClass;
-  end;
-
-  [TestFixture]
-  TInterfaceFactoryTest = class
-  private
-    FContext: TRttiContext;
-  public
-    [Setup]
-    procedure Setup;
-    [Teardown]
-    procedure Teardown;
-    [Test]
-    procedure WhenConstructTheInterfaceMustLocateTheObjectThatImplementsTheInterface;
   end;
 
   [TestFixture]
@@ -277,7 +268,18 @@ type
     ['{904F4775-6482-447C-8FDA-849036C92077}']
   end;
 
-  TMyObjectInterface = class(TInterfacedObject, IMyInterface)
+  IAnotherInterface = interface
+    ['{0175C2F6-765D-43B3-B409-04B449B2DAEE}']
+  end;
+
+  IMyInterfaceWithMoreTheOneObject = interface
+    ['{F0D4CC42-A631-4D02-BFFD-A972B4BCDA88}']
+  end;
+
+  TMyObjectInterface = class(TInterfacedObject, IMyInterface, IMyInterfaceWithMoreTheOneObject)
+  end;
+
+  TMyInterfaceWithMoreTheOneObject = class(TInterfacedObject, IMyInterfaceWithMoreTheOneObject)
   end;
 
   {$M-}
@@ -321,6 +323,13 @@ begin
   Assert.IsNotNull(AClass);
 
   AClass.Free;
+end;
+
+procedure TInjectorTest.WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
+begin
+  var Objects := FInjector.ResolveAll<IMyInterfaceWithMoreTheOneObject>;
+
+  Assert.AreEqual(2, Length(Objects));
 end;
 
 procedure TInjectorTest.WhenFindMoreThenOneFactoryForATypeMustRaiseError;
@@ -601,8 +610,6 @@ end;
 
 procedure TInjectorTest.WhenResolveAnInterfaceMustReturnTheInterfaceInstanceLoaded;
 begin
-  FInjector.RegisterFactory<IMyInterface>;
-
   var MyInterface := FInjector.Resolve<IMyInterface>;
 
   Assert.IsNotNull(MyInterface);
@@ -641,6 +648,15 @@ begin
     end);
 end;
 
+procedure TInjectorTest.WhenTheInterfaceHasNotAnObjectThatImplementTheInterfaceMustRaiseAnError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.Resolve<IAnotherInterface>;
+    end, ETypeFactoryNotRegistered);
+end;
+
 procedure TInjectorTest.WhenTryToRegisterTheSameFactoryMoreThenOnceCannnotRaiseAnyError;
 begin
   Assert.WillNotRaise(
@@ -662,7 +678,7 @@ begin
       var AnInterface := FInjector.Resolve<IMyInterface>;
 
       AnInterface := nil;
-    end, ETypeFactoryNotRegistered);
+    end);
 end;
 
 procedure TInjectorTest.WhenTryToResolveATypeNotRegisteredMustFindItInTheRttiAndResolveTheType;
@@ -673,7 +689,7 @@ begin
       var AClass := FInjector.Resolve<TSimpleClass>;
 
       AClass.Free;
-    end, ETypeFactoryNotRegistered);
+    end);
 end;
 
 { TClassWithConstructor }
@@ -1043,33 +1059,6 @@ begin
   Assert.AreEqual(AClass, TheObject);
 
   AClass.Free;
-end;
-
-{ TInterfaceFactoryTest }
-
-procedure TInterfaceFactoryTest.Setup;
-begin
-  FContext := TRttiContext.Create;
-end;
-
-procedure TInterfaceFactoryTest.Teardown;
-begin
-  FContext.Free;
-end;
-
-procedure TInterfaceFactoryTest.WhenConstructTheInterfaceMustLocateTheObjectThatImplementsTheInterface;
-begin
-  var Injector := TInjector.Create;
-
-  var Factory := TInterfaceFactory.Create(Injector, FContext.GetType(TypeInfo(IMyInterface)).AsInterface) as IFactory;
-
-  var MyInterface := Factory.Construct(nil);
-
-  Assert.IsFalse(MyInterface.IsEmpty);
-
-  Assert.AreEqual(TMyObjectInterface, TObject(MyInterface.AsType<IMyInterface>).ClassType);
-
-  Injector.Free;
 end;
 
 { TRttiObjectHelperTest }

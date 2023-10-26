@@ -29,7 +29,7 @@ begin
     RttiType.QualifiedName;
   end;
 
-  Context.Free;
-
   TestInsight.DUnitX.RunRegisteredTests;
+
+  Context.Free;
 end.
