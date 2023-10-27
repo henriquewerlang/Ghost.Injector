@@ -465,7 +465,7 @@ end;
 
 constructor EFoundMoreThenOneFactory.Create(const AType: TRttiType);
 begin
-  inherited CreateFmt('Too many factories for the type "%s"!', [AType.QualifiedClassName]);
+  inherited CreateFmt('Too many factories for the type "%s"!', [AType.QualifiedName]);
 end;
 
 { EConstructorParamsMismatch }
