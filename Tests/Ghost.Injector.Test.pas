@@ -78,6 +78,8 @@ type
     procedure WhenRegisterASingletonFactoryTheFactoryConstructorMustBeCallOnlyOneTime;
     [Test]
     procedure WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
+    [Test]
+    procedure WhenTheInjectorIsDestroyedMustDestroyTheInternalClassOfSingletonFactories;
   end;
 
   [TestFixture]
@@ -309,6 +311,13 @@ type
     constructor Create(const Param: IMyInterface);
   end;
 
+  TMyClassWithDestructor = class
+  public
+    class var DestroyCalled: Boolean;
+
+    destructor Destroy; override;
+  end;
+
 implementation
 
 uses System.TypInfo, System.SysUtils, Translucent;
@@ -483,7 +492,7 @@ begin
   Assert.WillRaise(
     procedure
     begin
-      FInjector.RegisterFactory<IInterfaceWithoutGUID>(TObjectFactory.Create(nil, nil));
+      FInjector.RegisterFactory<IInterfaceWithoutGUID>(TObjectFactory.Create(nil, nil) as IFactory);
     end, EInterfaceWithoutGUID);
 end;
 
@@ -695,6 +704,19 @@ begin
     begin
       FInjector.Resolve<TMyClassWithInterfaceInConstructor>([TMyObjectInterface.Create as IMyInterface]).Free;
     end);
+end;
+
+procedure TInjectorTest.WhenTheInjectorIsDestroyedMustDestroyTheInternalClassOfSingletonFactories;
+begin
+  var Injector := TInjector.Create;
+
+  Injector.RegisterFactory<TMyClassWithDestructor>.AsSingleton;
+
+  Injector.Resolve<TMyClassWithDestructor>;
+
+  Injector.Free;
+
+  Assert.IsTrue(TMyClassWithDestructor.DestroyCalled);
 end;
 
 procedure TInjectorTest.WhenTheInterfaceHasNotAnObjectThatImplementTheInterfaceMustRaiseAnError;
@@ -1277,6 +1299,15 @@ begin
   SingletonFactory.Construct([1, 2]);
 
   Assert.AreEqual(2, ParamCount);
+end;
+
+{ TMyClassWithDestructor }
+
+destructor TMyClassWithDestructor.Destroy;
+begin
+  DestroyCalled := True;
+
+  inherited;
 end;
 
 end.

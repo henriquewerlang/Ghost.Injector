@@ -84,6 +84,8 @@ type
     function Construct(const Params: TArray<TValue>): TValue;
   public
     constructor Create(const Factory: IFactory);
+
+    destructor Destroy; override;
   end;
 
   TInjector = class
@@ -529,6 +531,14 @@ begin
   inherited Create;
 
   FFactory := Factory;
+end;
+
+destructor TSingletonFactory.Destroy;
+begin
+  if FFactoryValue.IsObjectInstance then
+    FFactoryValue.AsObject.Free;
+
+  inherited;
 end;
 
 end.
