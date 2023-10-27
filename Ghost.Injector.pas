@@ -7,17 +7,17 @@ uses System.TypInfo, System.Rtti, System.Generics.Collections, System.SysUtils;
 type
   EConstructorParamsMismatch = class(Exception)
   public
-    constructor Create(const AType: TRttiType);
+    constructor Create(const RttiType: TRttiType);
   end;
 
   EFoundMoreThenOneFactory = class(Exception)
   public
-    constructor Create(const AType: TRttiType);
+    constructor Create(const RttiType: TRttiType);
   end;
 
   ETypeFactoryNotRegistered = class(Exception)
   public
-    constructor Create(const AType: TRttiType);
+    constructor Create(const RttiType: TRttiType);
   end;
 
   TInjector = class;
@@ -87,9 +87,9 @@ type
     FRegisteredTypes: TDictionary<String, TList<TFactoryRegistration>>;
 
     function FindFactories(const FactoryName: String; const FactoryType: TRttiType): TList<TFactoryRegistration>;
-    function GetFactory(const FactoryName: String; const AType: TRttiType): IFactory;
-    function GetFactoryRegister(const FactoryName: String; const AType: TRttiType): TList<TFactoryRegistration>;
-    function InternalRegisterFactory(const FactoryName: String; const AType: TRttiType; const Factory: IFactory): TList<TFactoryRegistration>;
+    function GetFactory(const FactoryName: String; const RttiType: TRttiType): IFactory;
+    function GetFactoryRegister(const FactoryName: String; const RttiType: TRttiType): TList<TFactoryRegistration>;
+    function InternalRegisterFactory(const FactoryName: String; const RttiType: TRttiType; const Factory: IFactory): TList<TFactoryRegistration>;
   public
     constructor Create;
 
@@ -136,9 +136,30 @@ implementation
 
 { ETypeFactoryNotRegistered }
 
-constructor ETypeFactoryNotRegistered.Create(const AType: TRttiType);
+constructor ETypeFactoryNotRegistered.Create(const RttiType: TRttiType);
 begin
-  inherited CreateFmt('The factory isn''t registered for the type %s!', [AType.QualifiedName]);
+  inherited CreateFmt('The factory isn''t registered for the type %s!', [RttiType.QualifiedName]);
+end;
+
+{ EInterfaceWithoutGUID }
+
+constructor EInterfaceWithoutGUID.Create(const RttiType: TRttiType);
+begin
+  inherited CreateFmt('When register an interface, it must have a GUID value, check the interface declaration of the type %s!', [RttiType.QualifiedName]);
+end;
+
+{ EFoundMoreThenOneFactory }
+
+constructor EFoundMoreThenOneFactory.Create(const RttiType: TRttiType);
+begin
+  inherited CreateFmt('Too many factories for the type "%s"!', [RttiType.QualifiedName]);
+end;
+
+{ EConstructorParamsMismatch }
+
+constructor EConstructorParamsMismatch.Create(const RttiType: TRttiType);
+begin
+  inherited CreateFmt('The constructor params mismatch for the type %s!', [RttiType.QualifiedName]);
 end;
 
 { TInjector }
@@ -166,11 +187,11 @@ function TInjector.FindFactories(const FactoryName: String; const FactoryType: T
 
   procedure RegisterAllObjectsThatImplementsThisInterface;
   begin
-    for var AType in FContext.GetTypes do
-      if AType.IsInstance then
-        for var InterfaceType in AType.AsInstance.GetImplementedInterfaces do
+    for var RttiType in FContext.GetTypes do
+      if RttiType.IsInstance then
+        for var InterfaceType in RttiType.AsInstance.GetImplementedInterfaces do
           if InterfaceType = FactoryType.AsInterface then
-            InternalRegisterFactory(FactoryName, FactoryType, TObjectFactory.Create(Self, AType.AsInstance))
+            InternalRegisterFactory(FactoryName, FactoryType, TObjectFactory.Create(Self, RttiType.AsInstance))
   end;
 
 begin
@@ -183,21 +204,21 @@ begin
       RegisterAllObjectsThatImplementsThisInterface;
 end;
 
-function TInjector.GetFactory(const FactoryName: String; const AType: TRttiType): IFactory;
+function TInjector.GetFactory(const FactoryName: String; const RttiType: TRttiType): IFactory;
 begin
-  var Factories := FindFactories(FactoryName, AType);
+  var Factories := FindFactories(FactoryName, RttiType);
 
   if Factories.Count = 0 then
-    raise ETypeFactoryNotRegistered.Create(AType)
+    raise ETypeFactoryNotRegistered.Create(RttiType)
   else if Factories.Count = 1 then
     Result := Factories.First.Factory
   else
-    raise EFoundMoreThenOneFactory.Create(AType);
+    raise EFoundMoreThenOneFactory.Create(RttiType);
 end;
 
-function TInjector.GetFactoryRegister(const FactoryName: String; const AType: TRttiType): TList<TFactoryRegistration>;
+function TInjector.GetFactoryRegister(const FactoryName: String; const RttiType: TRttiType): TList<TFactoryRegistration>;
 begin
-  var RegisterName := Format('%s-%s', [AType.QualifiedName, FactoryName]);
+  var RegisterName := Format('%s-%s', [RttiType.QualifiedName, FactoryName]);
 
   if not FRegisteredTypes.TryGetValue(RegisterName, Result) then
   begin
@@ -207,9 +228,9 @@ begin
   end;
 end;
 
-function TInjector.InternalRegisterFactory(const FactoryName: String; const AType: TRttiType; const Factory: IFactory): TList<TFactoryRegistration>;
+function TInjector.InternalRegisterFactory(const FactoryName: String; const RttiType: TRttiType; const Factory: IFactory): TList<TFactoryRegistration>;
 begin
-  Result := GetFactoryRegister(FactoryName, AType);
+  Result := GetFactoryRegister(FactoryName, RttiType);
 
   Result.Add(TFactoryRegistration.Create(Factory));
 end;
@@ -459,20 +480,6 @@ begin
   inherited Create;
 
   FInstance := Instance;
-end;
-
-{ EFoundMoreThenOneFactory }
-
-constructor EFoundMoreThenOneFactory.Create(const AType: TRttiType);
-begin
-  inherited CreateFmt('Too many factories for the type "%s"!', [AType.QualifiedName]);
-end;
-
-{ EConstructorParamsMismatch }
-
-constructor EConstructorParamsMismatch.Create(const AType: TRttiType);
-begin
-  inherited CreateFmt('The constructor params mismatch for the type %s!', [AType.QualifiedName]);
 end;
 
 { TValueHelper }
