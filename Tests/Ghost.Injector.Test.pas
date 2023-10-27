@@ -76,6 +76,8 @@ type
     procedure WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
     [Test]
     procedure WhenRegisterASingletonFactoryTheFactoryConstructorMustBeCallOnlyOneTime;
+    [Test]
+    procedure WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
   end;
 
   [TestFixture]
@@ -287,6 +289,10 @@ type
     ['{F0D4CC42-A631-4D02-BFFD-A972B4BCDA88}']
   end;
 
+  IInterfaceWithoutGUID = interface
+
+  end;
+
   TMyObjectInterface = class(TInterfacedObject, IMyInterface, IMyInterfaceWithMoreTheOneObject)
   end;
 
@@ -470,6 +476,15 @@ begin
   Assert.AreEqual(AClass, TheObject);
 
   AClass.Free;
+end;
+
+procedure TInjectorTest.WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.RegisterFactory<IInterfaceWithoutGUID>(TObjectFactory.Create(nil, nil));
+    end, EInterfaceWithoutGUID);
 end;
 
 procedure TInjectorTest.WhenRegisterASingletonFactoryTheFactoryConstructorMustBeCallOnlyOneTime;

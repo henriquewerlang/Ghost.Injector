@@ -20,6 +20,11 @@ type
     constructor Create(const RttiType: TRttiType);
   end;
 
+  EInterfaceWithoutGUID = class(Exception)
+  public
+    constructor Create(const RttiType: TRttiType);
+  end;
+
   TInjector = class;
 
   TFactoryFunction<T> = reference to function(const Params: TArray<TValue>): T;
@@ -141,13 +146,6 @@ begin
   inherited CreateFmt('The factory isn''t registered for the type %s!', [RttiType.QualifiedName]);
 end;
 
-{ EInterfaceWithoutGUID }
-
-constructor EInterfaceWithoutGUID.Create(const RttiType: TRttiType);
-begin
-  inherited CreateFmt('When register an interface, it must have a GUID value, check the interface declaration of the type %s!', [RttiType.QualifiedName]);
-end;
-
 { EFoundMoreThenOneFactory }
 
 constructor EFoundMoreThenOneFactory.Create(const RttiType: TRttiType);
@@ -160,6 +158,13 @@ end;
 constructor EConstructorParamsMismatch.Create(const RttiType: TRttiType);
 begin
   inherited CreateFmt('The constructor params mismatch for the type %s!', [RttiType.QualifiedName]);
+end;
+
+{ EInterfaceWithoutGUID }
+
+constructor EInterfaceWithoutGUID.Create(const RttiType: TRttiType);
+begin
+  inherited CreateFmt('When register an interface, it must have a GUID value, check the interface declaration of the type %s!', [RttiType.QualifiedName]);
 end;
 
 { TInjector }
@@ -230,6 +235,9 @@ end;
 
 function TInjector.InternalRegisterFactory(const FactoryName: String; const RttiType: TRttiType; const Factory: IFactory): TList<TFactoryRegistration>;
 begin
+  if RttiType.IsInterface and RttiType.AsInterface.GUID.IsEmpty then
+    raise EInterfaceWithoutGUID.Create(RttiType);
+
   Result := GetFactoryRegister(FactoryName, RttiType);
 
   Result.Add(TFactoryRegistration.Create(Factory));
