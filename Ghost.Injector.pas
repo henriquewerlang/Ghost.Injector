@@ -134,11 +134,6 @@ type
     property IsInterface: Boolean read GetIsInterface;
   end;
 
-  TValueHelper = record helper for TValue
-  public
-    class function FromConst(const Params: array of const): TArray<TValue>; static;
-  end;
-
 implementation
 
 { ETypeFactoryNotRegistered }
@@ -277,7 +272,7 @@ end;
 
 function TInjector.Resolve<T>(const Params: array of const): T;
 begin
-  Result := Resolve<T>(TValue.FromConst(Params));
+  Result := Resolve<T>(ArrayOfConstToTValueArray(Params));
 end;
 
 function TInjector.Resolve<T>(const Params: TArray<TValue>): T;
@@ -387,8 +382,9 @@ end;
 function TObjectFactory.Construct(const Params: TArray<TValue>): TValue;
 begin
   var ConvertedParams: TArray<TValue> := nil;
+  var Method := FindConstructorCandidate(Params, ConvertedParams);
 
-  Result := FindConstructorCandidate(Params, ConvertedParams).Invoke(FObjectType.MetaclassType, ConvertedParams).AsObject;
+  Result := Method.Invoke(FObjectType.MetaclassType, ConvertedParams).AsObject;
 end;
 
 constructor TObjectFactory.Create(const Injector: TInjector; const RttiType: TRttiInstanceType);
@@ -490,16 +486,6 @@ begin
   inherited Create;
 
   FInstance := Instance;
-end;
-
-{ TValueHelper }
-
-class function TValueHelper.FromConst(const Params: array of const): TArray<TValue>;
-begin
-  SetLength(Result, Length(Params));
-
-  for var A := Low(Params) to High(Params) do
-    Result[A] := TValue.FromVarRec(Params[A]);
 end;
 
 { TFactoryRegistration }
