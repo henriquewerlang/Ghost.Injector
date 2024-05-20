@@ -70,3 +70,4 @@ modules/
 
 Win32
 Win64
+*.dsv
