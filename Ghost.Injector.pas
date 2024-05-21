@@ -76,6 +76,16 @@ type
     constructor Create(const Injector: TInjector; const RttiType: TRttiInstanceType);
   end;
 
+  TResolverFactory = class(TFactory, IFactory)
+  private
+    FInjector: TInjector;
+    FRttiType: TRttiType;
+
+    function Construct(const Params: TArray<TValue>): TValue;
+  public
+    constructor Create(const Injector: TInjector; const RttiType: TRttiType);
+  end;
+
   TSingletonFactory = class(TFactory, IFactory)
   private
     FFactory: IFactory;
@@ -193,7 +203,7 @@ function TInjector.FindFactories(const FactoryName: String; const FactoryType: T
       if RttiType.IsInstance then
         for var InterfaceType in RttiType.AsInstance.GetImplementedInterfaces do
           if InterfaceType = FactoryType.AsInterface then
-            InternalRegisterFactory(FactoryName, FactoryType, TObjectFactory.Create(Self, RttiType.AsInstance))
+            InternalRegisterFactory(FactoryName, FactoryType, TResolverFactory.Create(Self, RttiType))
   end;
 
 begin
@@ -525,6 +535,21 @@ begin
     FFactoryValue.AsObject.Free;
 
   inherited;
+end;
+
+{ TResolverFactory }
+
+function TResolverFactory.Construct(const Params: TArray<TValue>): TValue;
+begin
+  Result := FInjector.Resolve(EmptyStr, FRttiType, Params);
+end;
+
+constructor TResolverFactory.Create(const Injector: TInjector; const RttiType: TRttiType);
+begin
+  inherited Create;
+
+  FInjector := Injector;
+  FRttiType := RttiType;
 end;
 
 end.

@@ -80,6 +80,8 @@ type
     procedure WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
     [Test]
     procedure WhenTheInjectorIsDestroyedMustDestroyTheInternalClassOfSingletonFactories;
+    [Test]
+    procedure WhenResolveAnInterfaceMustResolveTheTypeThatImplementsTheInterface;
   end;
 
   [TestFixture]
@@ -173,6 +175,22 @@ type
     procedure TheConstructorOfTheFactoryMustBeCalledOnlyOnce;
     [Test]
     procedure TheConstructorMustReturnTheFactoryValue;
+  end;
+
+  [TestFixture]
+  TResolverFactoryTest = class
+  private
+    FContext: TRttiContext;
+    FInjector: TInjector;
+  public
+    [Setup]
+    procedure Setup;
+    [TearDown]
+    procedure TearDown;
+    [Test]
+    procedure WhenConstructTheFactoryMustResolveTheTypeOfTheFactory;
+    [Test]
+    procedure TheConstructorMustPassTheParametersForTheResolveFunction;
   end;
 
   TSimpleClass = class
@@ -664,6 +682,22 @@ begin
   Assert.AreEqual<NativeInt>(3, Length(ResolvedValues));
 
   Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
+end;
+
+procedure TInjectorTest.WhenResolveAnInterfaceMustResolveTheTypeThatImplementsTheInterface;
+begin
+  var FunctionCalled := False;
+
+  FInjector.RegisterFactory<TMyObjectInterface>(
+    function: TMyObjectInterface
+    begin
+      FunctionCalled := True;
+      Result := TMyObjectInterface.Create;
+    end);
+
+  FInjector.Resolve<IMyInterface>;
+
+  Assert.IsTrue(FunctionCalled);
 end;
 
 procedure TInjectorTest.WhenResolveAnInterfaceMustReturnTheInterfaceInstanceLoaded;
@@ -1308,6 +1342,54 @@ begin
   DestroyCalled := True;
 
   inherited;
+end;
+
+{ TResolverFactoryTest }
+
+procedure TResolverFactoryTest.Setup;
+begin
+  FInjector := TInjector.Create;
+end;
+
+procedure TResolverFactoryTest.TearDown;
+begin
+  FInjector.Free;
+end;
+
+procedure TResolverFactoryTest.TheConstructorMustPassTheParametersForTheResolveFunction;
+begin
+  var Factory := TResolverFactory.Create(FInjector, FContext.GetType(TSimpleClass)) as IFactory;
+  var ParameterValue := 0;
+
+  FInjector.RegisterFactory<TSimpleClass>(
+    function (const Params: TArray<TValue>): TSimpleClass
+    begin
+      Result := nil;
+
+      if Length(Params) > 0 then
+        ParameterValue := Params[0].AsInteger;
+    end);
+
+  Factory.Construct([20]);
+
+  Assert.AreEqual(20, ParameterValue);
+end;
+
+procedure TResolverFactoryTest.WhenConstructTheFactoryMustResolveTheTypeOfTheFactory;
+begin
+  var Factory := TResolverFactory.Create(FInjector, FContext.GetType(TSimpleClass)) as IFactory;
+  var FunctionCalled := False;
+
+  FInjector.RegisterFactory<TSimpleClass>(
+    function: TSimpleClass
+    begin
+      FunctionCalled := True;
+      Result := nil;
+    end);
+
+  Factory.Construct(nil);
+
+  Assert.IsTrue(FunctionCalled);
 end;
 
 end.
