@@ -82,6 +82,8 @@ type
     procedure WhenTheInjectorIsDestroyedMustDestroyTheInternalClassOfSingletonFactories;
     [Test]
     procedure WhenResolveAnInterfaceMustResolveTheTypeThatImplementsTheInterface;
+    [Test]
+    procedure WhenTheSingletonDontOwnsTheObjectCantDestroyTheRegisteredObject;
   end;
 
   [TestFixture]
@@ -333,6 +335,8 @@ type
   public
     class var DestroyCalled: Boolean;
 
+    constructor Create;
+
     destructor Destroy; override;
   end;
 
@@ -524,7 +528,7 @@ begin
       Result := nil;
 
       Inc(FunctionCalled);
-    end).AsSingleton;
+    end).AsSingleton(True);
 
   FInjector.Resolve<TSimpleClass>;
 
@@ -744,7 +748,7 @@ procedure TInjectorTest.WhenTheInjectorIsDestroyedMustDestroyTheInternalClassOfS
 begin
   var Injector := TInjector.Create;
 
-  Injector.RegisterFactory<TMyClassWithDestructor>.AsSingleton;
+  Injector.RegisterFactory<TMyClassWithDestructor>.AsSingleton(True);
 
   Injector.Resolve<TMyClassWithDestructor>;
 
@@ -760,6 +764,22 @@ begin
     begin
       FInjector.Resolve<IAnotherInterface>;
     end, ETypeFactoryNotRegistered);
+end;
+
+procedure TInjectorTest.WhenTheSingletonDontOwnsTheObjectCantDestroyTheRegisteredObject;
+begin
+  var Injector := TInjector.Create;
+  var MyObject := TMyClassWithDestructor.Create;
+
+  Injector.RegisterFactory(MyObject).AsSingleton(False);
+
+  Injector.Resolve<TMyClassWithDestructor>;
+
+  Injector.Free;
+
+  Assert.IsFalse(TMyClassWithDestructor.DestroyCalled);
+
+  MyObject.Free;
 end;
 
 procedure TInjectorTest.WhenTryToRegisterTheSameFactoryMoreThenOnceCannnotRaiseAnyError;
@@ -1289,7 +1309,7 @@ begin
     begin
       Result := 10;
     end);
-  var SingletonFactory := TSingletonFactory.Create(Factory) as IFactory;
+  var SingletonFactory := TSingletonFactory.Create(Factory, False) as IFactory;
 
   var Value := SingletonFactory.Construct(nil);
 
@@ -1307,7 +1327,7 @@ begin
 
       Inc(PassCount);
     end);
-  var SingletonFactory := TSingletonFactory.Create(Factory) as IFactory;
+  var SingletonFactory := TSingletonFactory.Create(Factory, False) as IFactory;
 
   SingletonFactory.Construct(nil);
 
@@ -1328,7 +1348,7 @@ begin
       ParamCount := Length(Params);
       Result := 0;
     end);
-  var SingletonFactory := TSingletonFactory.Create(Factory) as IFactory;
+  var SingletonFactory := TSingletonFactory.Create(Factory, False) as IFactory;
 
   SingletonFactory.Construct([1, 2]);
 
@@ -1336,6 +1356,11 @@ begin
 end;
 
 { TMyClassWithDestructor }
+
+constructor TMyClassWithDestructor.Create;
+begin
+  DestroyCalled := False;
+end;
 
 destructor TMyClassWithDestructor.Destroy;
 begin

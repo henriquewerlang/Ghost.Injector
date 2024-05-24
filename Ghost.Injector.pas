@@ -39,15 +39,12 @@ type
   public
     constructor Create(const Factory: IFactory);
 
-    procedure AsSingleton;
+    procedure AsSingleton(const OwnsObject: Boolean);
 
     property Factory: IFactory read FFactory write FFactory;
   end;
 
-  TFactory = class(TInterfacedObject)
-  end;
-
-  TFunctionFactory = class(TFactory, IFactory)
+  TFunctionFactory = class(TInterfacedObject, IFactory)
   private
     FFactoryFunction: TFactoryFunction<TValue>;
 
@@ -56,7 +53,7 @@ type
     constructor Create(const FactoryFunction: TFactoryFunction<TValue>);
   end;
 
-  TInstanceFactory = class(TFactory, IFactory)
+  TInstanceFactory = class(TInterfacedObject, IFactory)
   private
     FInstance: TValue;
 
@@ -65,7 +62,7 @@ type
     constructor Create(const Instance: TValue);
   end;
 
-  TObjectFactory = class(TFactory, IFactory)
+  TObjectFactory = class(TInterfacedObject, IFactory)
   private
     FInjector: TInjector;
     FObjectType: TRttiInstanceType;
@@ -76,7 +73,7 @@ type
     constructor Create(const Injector: TInjector; const RttiType: TRttiInstanceType);
   end;
 
-  TResolverFactory = class(TFactory, IFactory)
+  TResolverFactory = class(TInterfacedObject, IFactory)
   private
     FInjector: TInjector;
     FRttiType: TRttiType;
@@ -86,14 +83,15 @@ type
     constructor Create(const Injector: TInjector; const RttiType: TRttiType);
   end;
 
-  TSingletonFactory = class(TFactory, IFactory)
+  TSingletonFactory = class(TInterfacedObject, IFactory)
   private
     FFactory: IFactory;
     FFactoryValue: TValue;
+    FOwnsObject: Boolean;
 
     function Construct(const Params: TArray<TValue>): TValue;
   public
-    constructor Create(const Factory: IFactory);
+    constructor Create(const Factory: IFactory; const OwnsObject: Boolean);
 
     destructor Destroy; override;
   end;
@@ -500,9 +498,9 @@ end;
 
 { TFactoryRegistration }
 
-procedure TFactoryRegistration.AsSingleton;
+procedure TFactoryRegistration.AsSingleton(const OwnsObject: Boolean);
 begin
-  FFactory := TSingletonFactory.Create(FFactory);
+  FFactory := TSingletonFactory.Create(FFactory, OwnsObject);
 end;
 
 constructor TFactoryRegistration.Create(const Factory: IFactory);
@@ -522,16 +520,17 @@ begin
   Result := FFactoryValue;
 end;
 
-constructor TSingletonFactory.Create(const Factory: IFactory);
+constructor TSingletonFactory.Create(const Factory: IFactory; const OwnsObject: Boolean);
 begin
   inherited Create;
 
   FFactory := Factory;
+  FOwnsObject := OwnsObject;
 end;
 
 destructor TSingletonFactory.Destroy;
 begin
-  if FFactoryValue.IsObjectInstance then
+  if FOwnsObject and FFactoryValue.IsObjectInstance then
     FFactoryValue.AsObject.Free;
 
   inherited;
