@@ -197,11 +197,12 @@ function TInjector.FindFactories(const FactoryName: String; const FactoryType: T
 
   procedure RegisterAllObjectsThatImplementsThisInterface;
   begin
-    for var RttiType in FContext.GetTypes do
-      if RttiType.IsInstance then
-        for var InterfaceType in RttiType.AsInstance.GetImplementedInterfaces do
-          if InterfaceType = FactoryType.AsInterface then
-            InternalRegisterFactory(FactoryName, FactoryType, TResolverFactory.Create(Self, RttiType))
+    for var RttiPackage in FContext.GetPackages do
+      for var RttiType in RttiPackage.GetTypes do
+        if RttiType.IsInstance then
+          for var InterfaceType in RttiType.AsInstance.GetImplementedInterfaces do
+            if InterfaceType = FactoryType.AsInterface then
+              InternalRegisterFactory(FactoryName, FactoryType, TResolverFactory.Create(Self, RttiType))
   end;
 
 begin
