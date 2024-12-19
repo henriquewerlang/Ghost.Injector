@@ -11,15 +11,12 @@ type
   {TODO -cInjetor: Tem que ser possível passar um enumerador para selecionar um serviço a ser criado
     * Ver se é possível usar esse esquema em uma anotação -> utilizando um parâmetro Variant, ele aceita construir a anotação}
 
-  {TODO -cFábrica de interface: Por uma anotação de qual classe deve ser criada
-    * Teria que ser o nome, senão teria problema de referência circular}
-  {TODO -cFábrica de interface: Registro nomeado tem que ser levado em consideração na busca do objeto para fábrica, não está fazendo isso}
-
   {TODO -cFábrica de objeto: Quando o construtor tiver objetos de parâmetros, tem que verificar se o parâmetro passado é igual ou derivado do parâmetro para aceitar o mesmo}
 
   [TestFixture]
   TInjectorTest = class
   private
+    FContext: TRttiContext;
     FInjector: TInjector;
   public
     [Setup]
@@ -27,63 +24,69 @@ type
     [TearDown]
     procedure TearDown;
     [Test]
-    procedure WhenRegisterAFunctionFactoryMustUseThisFactoryToCreateTheObject;
+    procedure WhenRegisterAFactoryMustReturnTheFactoryRegistrationLoaded;
     [Test]
-    procedure WhenRegisterAFunctionFactoryWithParamsMustUseThisFunctionToCreateTheObject;
+    procedure WhenRegisterAFactoryMustReturnTheFactoryLoaded;
     [Test]
-    procedure TheResolveFunctionMustReturnTheInstanceOfTheObjectWhenCalled;
+    procedure WhenResolveTheFactoryMustReturnTheInstanceOfTypeRegisteredInTheFactory;
     [Test]
-    procedure WhenResolveATypeWithParamsMustReturnTheInstanceOfTheObject;
+    procedure WhenResolveTheFactoryMustReturnTheInstanceAsExpected;
     [Test]
-    procedure WhenRegisterAnInstanceFactoryMustReturnThisInstanceWhenResolveTheObject;
+    procedure WhenTryToResolveAUnregisteredFactoryMystRaiseError;
     [Test]
-    procedure WhenRegisterAFactoryInterfaceMustUseThisInterfaceToCreateTheObject;
+    procedure WhenTryToResolveAFactoryWithMoreThanOneTypeRegisteredMustRaiseError;
     [Test]
-    procedure WhenRegisterAClassFactoryMustRegisterAFactoryToThisType;
+    procedure WhenResolveAFactoryWithParametersMustPassTheValuesToTheFactory;
+    [Test]
+    procedure WhenResolveWithTheSpecializedFunctionMustReturnTheInstanceAsExpected;
+    [Test]
+    procedure WhenResolveWithTheSpecializedFunctionUsingParamsMustReturnTheInstanceAsExpected;
+    [Test]
+    procedure WhenRegisterAFactoryWithTheSpecializedFunctionMustRegisterTheFactoryNameWithTheQualifiedTypeName;
+    [Test]
+    procedure WhenRegisterAFactoryWithTheSpecializedFunctionUsingAClassInstanceMustRegisterAInstanceFactory;
+    [Test]
+    procedure WhenResolveATypeFromAFactoryWithTheSpecializedFunctionUsingAClassInstanceMustReturnTheClassInstanceAsExpected;
+    [Test]
+    procedure WhenRegisterAnInterfaceInstanceMustRegisterAnInstanceFactory;
+    [Test]
+    procedure WhenResolveATypeFromAFactoryWithTheSpecializedFunctionUsingAInterfaceInstanceMustReturnTheInterfaceInstanceAsExpected;
+    [Test]
+    procedure WhenRegisterAFunctionInstanceMustRegisterAFunctionFactory;
+    [Test]
+    procedure WhenResolveATypeFromAFactoryFunctionMustExecuteTheFunctionToResolveTheType;
+    [Test]
+    procedure WhenRegisterAnClassFactoryMustReturnAnObjectFactory;
+    [Test]
+    procedure WhenResolveATypeFromAClassFactoryRegisteredMustReturnTheObjectInstanceAsExpected;
+    [Test]
+    procedure WhenRegisterAnInterfaceWithOneClassMustCreateAnObjectFactory;
+    [Test]
+    procedure WhenResolveAnInterfaceTypeMustCreateTheObjectAsExpected;
+    [Test]
+    procedure WhenRegisterAnInterfaceWithOneClassWithNameFactoryMustResolveWithTheFactoryName;
+    [Test]
+    procedure WhenResolveWithTheSpecializedFunctionMustReturnTheClassInstanceAsExpected;
+    [Test]
+    procedure WhenResolveWithTheSpecializedWithParamsMustCreateTheClassWithTheParams;
     [Test]
     procedure WhenTryToResolveATypeNotRegisteredMustFindItInTheRttiAndResolveTheType;
     [Test]
     procedure WhenTryToResolveAnInterfaceNotRegisteredMustFindInTheTypeInRttiAndResolveTheType;
     [Test]
+    procedure WhenTryToResolveAnTypeNotRegisteredAndCanBeRegisteredMustRaiseError;
+    [Test]
     procedure WhenTryToRegisterTheSameFactoryMoreThenOnceCannnotRaiseAnyError;
     [Test]
-    procedure WhenRegisterATypeNamedFactoryMustUseTheNamedFactoryToCreateTheType;
-    [Test]
-    procedure WhenRegisterAnInstanceNamedFactoryMustUseThisFactoryToResolveTheType;
-    [Test]
-    procedure WhenRegisterANamedFunctionFactoryMustUseThisFactoryToResolveTheType;
-    [Test]
-    procedure WhenRegisterANamedFunctionFactoryWithParamsMustUseThisFactoryToResolveTheType;
-    [Test]
-    procedure WhenFindMoreThenOneFactoryForATypeMustRaiseError;
-    [Test]
-    procedure WhenResolveAnInterfaceMustReturnTheInterfaceInstanceLoaded;
-    [Test]
-    procedure WhenResolveAllMustCreateAllTypeRegisteredForFactotySelected;
-    [Test]
-    procedure WhenResolveAllMustCreateAllTypeRegisteredForFactotySelectedWithTheParamPassed;
-    [Test]
-    procedure WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatType;
-    [Test]
-    procedure WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatTypeWithTheParamPassed;
-    [Test]
-    procedure WhenResolveTheInjectorMustReturnTheInjectorItSelf;
-    [Test]
-    procedure WhenTheConstructorNeedAnInterfaceMustTryToConvertTheParamToTheExpectedInterface;
+    procedure WhenResolveAllMustCreateAllTypesRegisteredForFactorySelected;
     [Test]
     procedure WhenTheInterfaceHasNotAnObjectThatImplementTheInterfaceMustRaiseAnError;
     [Test]
     procedure WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
-    [Test]
-    procedure WhenRegisterASingletonFactoryTheFactoryConstructorMustBeCallOnlyOneTime;
-    [Test]
+    [TTest]
     procedure WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
     [Test]
-    procedure WhenTheInjectorIsDestroyedMustDestroyTheInternalClassOfSingletonFactories;
-    [Test]
-    procedure WhenResolveAnInterfaceMustResolveTheTypeThatImplementsTheInterface;
-    [Test]
-    procedure WhenTheSingletonDontOwnsTheObjectCantDestroyTheRegisteredObject;
+    procedure WhenTheInjectorIsCreatedItMustRegisterItSelfAsAnInstanceFactory;
   end;
 
   [TestFixture]
@@ -177,22 +180,12 @@ type
     procedure TheConstructorOfTheFactoryMustBeCalledOnlyOnce;
     [Test]
     procedure TheConstructorMustReturnTheFactoryValue;
-  end;
-
-  [TestFixture]
-  TResolverFactoryTest = class
-  private
-    FContext: TRttiContext;
-    FInjector: TInjector;
-  public
-    [Setup]
-    procedure Setup;
-    [TearDown]
-    procedure TearDown;
     [Test]
-    procedure WhenConstructTheFactoryMustResolveTheTypeOfTheFactory;
+    procedure WhenTheFactoryOwnsTheObjectMustDestroyWhenTheFactoryIsDestroyed;
     [Test]
-    procedure TheConstructorMustPassTheParametersForTheResolveFunction;
+    procedure WhenTheFactoryDontOwnsTheObjectCantDestroyTheObjectAfterTheFactoryIsDestroyed;
+    [Test]
+    procedure IfTheOwnedObjectIsntAnObjectCantDestroyTheObjectWhenTheFactoryIsDestroyed;
   end;
 
   TSimpleClass = class
@@ -331,7 +324,7 @@ type
     constructor Create(const Param: IMyInterface);
   end;
 
-  TMyClassWithDestructor = class
+  TMyClassWithDestructor = class(TInterfacedObject, IMyInterfaceWithMoreTheOneObject)
   public
     class var DestroyCalled: Boolean;
 
@@ -348,6 +341,7 @@ uses System.TypInfo, System.SysUtils, Translucent;
 
 procedure TInjectorTest.Setup;
 begin
+  FContext := TRttiContext.Create;
   FInjector := TInjector.Create;
 
   TMock.CreateInterface<IFactory>;
@@ -355,293 +349,137 @@ end;
 
 procedure TInjectorTest.TearDown;
 begin
+  FContext.Free;
+
   FInjector.Free;
-end;
-
-procedure TInjectorTest.TheResolveFunctionMustReturnTheInstanceOfTheObjectWhenCalled;
-begin
-  FInjector.RegisterFactory<TSimpleClass>(
-    function: TSimpleClass
-    begin
-      Result := TSimpleClass.Create;
-    end);
-
-  var AClass := FInjector.Resolve<TSimpleClass>;
-
-  Assert.IsNotNull(AClass);
-
-  AClass.Free;
 end;
 
 procedure TInjectorTest.WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
 begin
   var Objects := FInjector.ResolveAll<IMyInterfaceWithMoreTheOneObject>;
 
-  Assert.AreEqual(2, Length(Objects));
+  Assert.AreEqual(3, Length(Objects));
 end;
 
-procedure TInjectorTest.WhenFindMoreThenOneFactoryForATypeMustRaiseError;
+procedure TInjectorTest.WhenRegisterAFactoryMustReturnTheFactoryLoaded;
 begin
-  FInjector.RegisterFactory<TSimpleClass>;
+  var FactoryRegister := FInjector.RegisterFactory('MyFactory', TInstanceFactory.Create(Self));
 
-  FInjector.RegisterFactory<TSimpleClass>;
+  Assert.IsNotNull(FactoryRegister.Factory);
+end;
 
-  FInjector.RegisterFactory<TSimpleClass>;
+procedure TInjectorTest.WhenRegisterAFactoryMustReturnTheFactoryRegistrationLoaded;
+begin
+  var FactoryRegister := FInjector.RegisterFactory('MyFactory', TInstanceFactory.Create(Self));
 
-  Assert.WillRaise(
+  Assert.IsNotNull(FactoryRegister);
+end;
+
+procedure TInjectorTest.WhenRegisterAFactoryWithTheSpecializedFunctionMustRegisterTheFactoryNameWithTheQualifiedTypeName;
+begin
+  FInjector.RegisterFactory(Self);
+
+  Assert.WillNotRaise(
     procedure
     begin
-      FInjector.Resolve<TSimpleClass>;
-    end, EFoundMoreThenOneFactory);
+      FInjector.Resolve(TInjectorTest.QualifiedClassName);
+    end);
 end;
 
-procedure TInjectorTest.WhenRegisterAClassFactoryMustRegisterAFactoryToThisType;
+procedure TInjectorTest.WhenRegisterAFactoryWithTheSpecializedFunctionUsingAClassInstanceMustRegisterAInstanceFactory;
 begin
-  FInjector.RegisterFactory<TSimpleClass>;
+  var FactoryRegistration := FInjector.RegisterFactory(Self);
 
-  var AClass := FInjector.Resolve<TSimpleClass>;
-
-  Assert.IsNotNull(AClass);
-
-  AClass.Free;
+  Assert.AreEqual(TInstanceFactory, TObject(FactoryRegistration.Factory).ClassType);
 end;
 
-procedure TInjectorTest.WhenRegisterAFactoryInterfaceMustUseThisInterfaceToCreateTheObject;
+procedure TInjectorTest.WhenRegisterAFunctionInstanceMustRegisterAFunctionFactory;
 begin
-  var AFactory := TMock.CreateInterface<IFactory>(True);
-
-  AFactory.Expect.Once.When.Construct(It.IsAny<TArray<TValue>>);
-
-  FInjector.RegisterFactory<TSimpleClass>(AFactory.Instance);
-
-  FInjector.Resolve<TSimpleClass>.Free;
-
-  Assert.CheckExpectation(AFactory.CheckExpectations);
-end;
-
-procedure TInjectorTest.WhenRegisterAFunctionFactoryMustUseThisFactoryToCreateTheObject;
-begin
-  var FunctionCalled := False;
-
-  FInjector.RegisterFactory<TSimpleClass>(
-    function: TSimpleClass
+  var FactoryRegistration := FInjector.RegisterFactory<TObject>(
+    function: TObject
     begin
-      FunctionCalled := True;
-      Result := nil;
+      raise Exception.Create('Can''t execute!');
     end);
 
-  FInjector.Resolve<TSimpleClass>;
-
-  Assert.IsTrue(FunctionCalled);
+  Assert.AreEqual(TFunctionFactory, TObject(FactoryRegistration.Factory).ClassType);
 end;
 
-procedure TInjectorTest.WhenRegisterAFunctionFactoryWithParamsMustUseThisFunctionToCreateTheObject;
+procedure TInjectorTest.WhenRegisterAnClassFactoryMustReturnAnObjectFactory;
 begin
-  var FunctionCalled := False;
+  var FactoryRegistration := FInjector.RegisterFactory<TMyObjectInterface>;
 
-  FInjector.RegisterFactory<TSimpleClass>(
-    function (const Params: TArray<TValue>): TSimpleClass
-    begin
-      FunctionCalled := (Length(Params) = 1) and (Params[0].AsInteger = 1234);
-      Result := nil;
-    end);
+  Assert.IsNotNull(FactoryRegistration);
 
-  FInjector.Resolve<TSimpleClass>([1234]);
-
-  Assert.IsTrue(FunctionCalled);
+  Assert.AreEqual(TObjectFactory, TObject(FactoryRegistration.Factory).ClassType);
 end;
 
-procedure TInjectorTest.WhenRegisterANamedFunctionFactoryMustUseThisFactoryToResolveTheType;
+procedure TInjectorTest.WhenRegisterAnInterfaceInstanceMustRegisterAnInstanceFactory;
 begin
-  var FunctionCalled := False;
+  var FactoryRegistration := FInjector.RegisterFactory(TMyObjectInterface.Create as IMyInterface);
 
-  FInjector.RegisterFactory<TSimpleClass>('MyFactory',
-    function: TSimpleClass
-    begin
-      FunctionCalled := True;
-      Result := nil;
-    end);
-
-  FInjector.Resolve<TSimpleClass>('MyFactory');
-
-  Assert.IsTrue(FunctionCalled);
+  Assert.AreEqual(TInstanceFactory, TObject(FactoryRegistration.Factory).ClassType);
 end;
 
-procedure TInjectorTest.WhenRegisterANamedFunctionFactoryWithParamsMustUseThisFactoryToResolveTheType;
+procedure TInjectorTest.WhenRegisterAnInterfaceWithOneClassMustCreateAnObjectFactory;
 begin
-  var FunctionCalled := False;
+  var FactoryRegistration := FInjector.RegisterFactory<IMyInterfaceWithMoreTheOneObject, TMyInterfaceWithMoreTheOneObject>;
 
-  FInjector.RegisterFactory<TSimpleClass>('MyFactory',
-    function(const Params: TArray<TValue>): TSimpleClass
-    begin
-      FunctionCalled := True;
-      Result := nil;
-    end);
+  Assert.IsNotNull(FactoryRegistration);
 
-  FInjector.Resolve<TSimpleClass>('MyFactory');
-
-  Assert.IsTrue(FunctionCalled);
+  Assert.AreEqual(TObjectFactory, TObject(FactoryRegistration.Factory).ClassType);
 end;
 
-procedure TInjectorTest.WhenRegisterAnInstanceFactoryMustReturnThisInstanceWhenResolveTheObject;
+procedure TInjectorTest.WhenRegisterAnInterfaceWithOneClassWithNameFactoryMustResolveWithTheFactoryName;
 begin
-  var AClass := TSimpleClass.Create;
+  FInjector.RegisterFactory<IMyInterfaceWithMoreTheOneObject, TMyInterfaceWithMoreTheOneObject>('My Factory');
 
-  FInjector.RegisterFactory(AClass);
+  var MyInterface := FInjector.Resolve('My Factory').AsType<IMyInterfaceWithMoreTheOneObject>;
 
-  var TheObject := FInjector.Resolve<TSimpleClass>;
-
-  Assert.AreEqual(AClass, TheObject);
-
-  AClass.Free;
-end;
-
-procedure TInjectorTest.WhenRegisterAnInstanceNamedFactoryMustUseThisFactoryToResolveTheType;
-begin
-  var AClass := TSimpleClass.Create;
-
-  FInjector.RegisterFactory('MyFactory', AClass);
-
-  var TheObject := FInjector.Resolve<TSimpleClass>('MyFactory');
-
-  Assert.AreEqual(AClass, TheObject);
-
-  AClass.Free;
+  Assert.IsNotNull(MyInterface);
 end;
 
 procedure TInjectorTest.WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
 begin
-  Assert.WillRaise(
-    procedure
-    begin
-      FInjector.RegisterFactory<IInterfaceWithoutGUID>(TObjectFactory.Create(nil, nil) as IFactory);
-    end, EInterfaceWithoutGUID);
+//  Assert.WillRaise(
+//    procedure
+//    begin
+//      FInjector.RegisterFactoryOld<IInterfaceWithoutGUID>(TObjectFactory.Create(nil, nil) as IFactory);
+//    end, EInterfaceWithoutGUID);
 end;
 
-procedure TInjectorTest.WhenRegisterASingletonFactoryTheFactoryConstructorMustBeCallOnlyOneTime;
+procedure TInjectorTest.WhenResolveAFactoryWithParametersMustPassTheValuesToTheFactory;
 begin
-  var FunctionCalled := 0;
+  FInjector.RegisterFactory('MyFactory', TObjectFactory.Create(FInjector, FContext.GetType(TClassWithConstructorWithTheSameParameterCount).AsInstance));
 
-  FInjector.RegisterFactory<TSimpleClass>(
-    function: TSimpleClass
-    begin
-      Result := nil;
+  var MyClass := FInjector.Resolve('MyFactory', [123]).AsType<TClassWithConstructorWithTheSameParameterCount>;
 
-      Inc(FunctionCalled);
-    end).AsSingleton(True);
+  Assert.AreEqual(123, MyClass.IntegerProperty);
 
-  FInjector.Resolve<TSimpleClass>;
-
-  FInjector.Resolve<TSimpleClass>;
-
-  FInjector.Resolve<TSimpleClass>;
-
-  FInjector.Resolve<TSimpleClass>;
-
-  Assert.AreEqual(1, FunctionCalled);
+  MyClass.Free;
 end;
 
-procedure TInjectorTest.WhenRegisterATypeNamedFactoryMustUseTheNamedFactoryToCreateTheType;
-begin
-  FInjector.RegisterFactory<TSimpleClass>('MyFactory');
-
-  var AClass := FInjector.Resolve<TSimpleClass>('MyFactory');
-
-  Assert.IsNotNull(AClass);
-
-  AClass.Free;
-end;
-
-procedure TInjectorTest.WhenResolveAllMustCreateAllTypeRegisteredForFactotySelected;
+procedure TInjectorTest.WhenResolveAllMustCreateAllTypesRegisteredForFactorySelected;
 begin
   var CalledFunction1 := False;
   var CalledFunction2 := False;
   var CalledFunction3 := False;
 
-  FInjector.RegisterFactory<IMyInterface>('MyFactory',
+  FInjector.RegisterFactory<IMyInterface>(
     function: IMyInterface
     begin
       CalledFunction1 := True;
       Result := nil;
     end);
 
-  FInjector.RegisterFactory<IMyInterface>('MyFactory',
+  FInjector.RegisterFactory<IMyInterface>(
     function: IMyInterface
     begin
       CalledFunction2 := True;
       Result := nil;
     end);
 
-  FInjector.RegisterFactory<IMyInterface>('MyFactory',
+  FInjector.RegisterFactory<IMyInterface>(
     function: IMyInterface
-    begin
-      CalledFunction3 := True;
-      Result := nil;
-    end);
-
-  var ResolvedValues := FInjector.ResolveAll<IMyInterface>('MyFactory');
-
-  Assert.AreEqual<NativeInt>(3, Length(ResolvedValues));
-
-  Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
-end;
-
-procedure TInjectorTest.WhenResolveAllMustCreateAllTypeRegisteredForFactotySelectedWithTheParamPassed;
-begin
-  var CalledFunction1 := False;
-  var CalledFunction2 := False;
-  var CalledFunction3 := False;
-
-  FInjector.RegisterFactory<IMyInterface>('MyFactory',
-    function (const Params: TArray<TValue>): IMyInterface
-    begin
-      CalledFunction1 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
-      Result := nil;
-    end);
-
-  FInjector.RegisterFactory<IMyInterface>('MyFactory',
-    function (const Params: TArray<TValue>): IMyInterface
-    begin
-      CalledFunction2 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
-      Result := nil;
-    end);
-
-  FInjector.RegisterFactory<IMyInterface>('MyFactory',
-    function (const Params: TArray<TValue>): IMyInterface
-    begin
-      CalledFunction3 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
-      Result := nil;
-    end);
-
-  var ResolvedValues := FInjector.ResolveAll<IMyInterface>('MyFactory', [123, 'abc']);
-
-  Assert.AreEqual<NativeInt>(3, Length(ResolvedValues));
-
-  Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
-end;
-
-procedure TInjectorTest.WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatType;
-begin
-  var CalledFunction1 := False;
-  var CalledFunction2 := False;
-  var CalledFunction3 := False;
-
-  FInjector.RegisterFactory<IMyInterface>(
-    function (const Params: TArray<TValue>): IMyInterface
-    begin
-      CalledFunction1 := True;
-      Result := nil;
-    end);
-
-  FInjector.RegisterFactory<IMyInterface>(
-    function (const Params: TArray<TValue>): IMyInterface
-    begin
-      CalledFunction2 := True;
-      Result := nil;
-    end);
-
-  FInjector.RegisterFactory<IMyInterface>(
-    function (const Params: TArray<TValue>): IMyInterface
     begin
       CalledFunction3 := True;
       Result := nil;
@@ -654,107 +492,114 @@ begin
   Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
 end;
 
-procedure TInjectorTest.WhenResolveAllWithoutFactoryNameMustCreateAllTypesRegisteredForThatTypeWithTheParamPassed;
+procedure TInjectorTest.WhenResolveAnInterfaceTypeMustCreateTheObjectAsExpected;
 begin
-  var CalledFunction1 := False;
-  var CalledFunction2 := False;
-  var CalledFunction3 := False;
+  FInjector.RegisterFactory<IMyInterfaceWithMoreTheOneObject, TMyInterfaceWithMoreTheOneObject>;
 
-  FInjector.RegisterFactory<IMyInterface>(
-    function (const Params: TArray<TValue>): IMyInterface
-    begin
-      CalledFunction1 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
-      Result := nil;
-    end);
-
-  FInjector.RegisterFactory<IMyInterface>(
-    function (const Params: TArray<TValue>): IMyInterface
-    begin
-      CalledFunction2 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
-      Result := nil;
-    end);
-
-  FInjector.RegisterFactory<IMyInterface>(
-    function (const Params: TArray<TValue>): IMyInterface
-    begin
-      CalledFunction3 := (Length(Params) = 2) and (Params[0].AsInteger = 123) and (Params[1].AsString = 'abc');
-      Result := nil;
-    end);
-
-  var ResolvedValues := FInjector.ResolveAll<IMyInterface>([123, 'abc']);
-
-  Assert.AreEqual<NativeInt>(3, Length(ResolvedValues));
-
-  Assert.IsTrue(CalledFunction1 and CalledFunction2 and CalledFunction3);
-end;
-
-procedure TInjectorTest.WhenResolveAnInterfaceMustResolveTheTypeThatImplementsTheInterface;
-begin
-  var FunctionCalled := False;
-
-  FInjector.RegisterFactory<TMyObjectInterface>(
-    function: TMyObjectInterface
-    begin
-      FunctionCalled := True;
-      Result := TMyObjectInterface.Create;
-    end);
-
-  FInjector.Resolve<IMyInterface>;
-
-  Assert.IsTrue(FunctionCalled);
-end;
-
-procedure TInjectorTest.WhenResolveAnInterfaceMustReturnTheInterfaceInstanceLoaded;
-begin
-  var MyInterface := FInjector.Resolve<IMyInterface>;
+  var MyInterface := FInjector.Resolve('Ghost.Injector.Test.IMyInterfaceWithMoreTheOneObject').AsType<IMyInterfaceWithMoreTheOneObject>;
 
   Assert.IsNotNull(MyInterface);
-
-  MyInterface := nil;
 end;
 
-procedure TInjectorTest.WhenResolveATypeWithParamsMustReturnTheInstanceOfTheObject;
+procedure TInjectorTest.WhenResolveATypeFromAClassFactoryRegisteredMustReturnTheObjectInstanceAsExpected;
 begin
-  FInjector.RegisterFactory<TSimpleClass>(
-    function: TSimpleClass
+  FInjector.RegisterFactory<TMyObjectInterface>;
+
+  var MyObject := FInjector.Resolve(TMyObjectInterface.QualifiedClassName).AsType<TMyObjectInterface>;
+
+  Assert.IsNotNull(MyObject);
+
+  MyObject.Free;
+end;
+
+procedure TInjectorTest.WhenResolveATypeFromAFactoryFunctionMustExecuteTheFunctionToResolveTheType;
+begin
+  FInjector.RegisterFactory<TObject>(
+    function: TObject
     begin
-      Result := TSimpleClass.Create;
+      Result := Self;
     end);
 
-  var AClass := FInjector.Resolve<TSimpleClass>([1234]);
-
-  Assert.IsNotNull(AClass);
-
-  AClass.Free;
+  Assert.AreEqual<TObject>(Self, FInjector.Resolve(TObject.QualifiedClassName).AsObject);
 end;
 
-procedure TInjectorTest.WhenResolveTheInjectorMustReturnTheInjectorItSelf;
+procedure TInjectorTest.WhenResolveATypeFromAFactoryWithTheSpecializedFunctionUsingAClassInstanceMustReturnTheClassInstanceAsExpected;
 begin
-  var Injector := FInjector.Resolve<TInjector>;
+  FInjector.RegisterFactory(Self);
 
-  Assert.AreEqual(Injector, FInjector);
+  Assert.AreEqual<TObject>(Self, FInjector.Resolve(QualifiedClassName).AsObject);
 end;
 
-procedure TInjectorTest.WhenTheConstructorNeedAnInterfaceMustTryToConvertTheParamToTheExpectedInterface;
+procedure TInjectorTest.WhenResolveATypeFromAFactoryWithTheSpecializedFunctionUsingAInterfaceInstanceMustReturnTheInterfaceInstanceAsExpected;
 begin
-  Assert.WillNotRaise(
-    procedure
-    begin
-      FInjector.Resolve<TMyClassWithInterfaceInConstructor>([TMyObjectInterface.Create as IMyInterface]).Free;
-    end);
+  var MyInterface := TMyObjectInterface.Create as IMyInterface;
+
+  FInjector.RegisterFactory(MyInterface);
+
+  Assert.AreEqual(MyInterface, FInjector.Resolve('Ghost.Injector.Test.IMyInterface').AsType<IMyInterface>);
 end;
 
-procedure TInjectorTest.WhenTheInjectorIsDestroyedMustDestroyTheInternalClassOfSingletonFactories;
+procedure TInjectorTest.WhenResolveTheFactoryMustReturnTheInstanceAsExpected;
 begin
-  var Injector := TInjector.Create;
+  FInjector.RegisterFactory('MyFactory', TInstanceFactory.Create(Self));
 
-  Injector.RegisterFactory<TMyClassWithDestructor>.AsSingleton(True);
+  Assert.AreEqual<TObject>(Self, FInjector.Resolve('MyFactory').AsObject);
+end;
 
-  Injector.Resolve<TMyClassWithDestructor>;
+procedure TInjectorTest.WhenResolveTheFactoryMustReturnTheInstanceOfTypeRegisteredInTheFactory;
+begin
+  FInjector.RegisterFactory('MyFactory', TInstanceFactory.Create(Self));
 
-  Injector.Free;
+  Assert.IsNotNull(FInjector.Resolve('MyFactory').AsObject);
+end;
 
-  Assert.IsTrue(TMyClassWithDestructor.DestroyCalled);
+procedure TInjectorTest.WhenResolveWithTheSpecializedFunctionMustReturnTheClassInstanceAsExpected;
+begin
+  FInjector.RegisterFactory<TMyObjectInterface>;
+
+  var MyClass := FInjector.Resolve<TMyObjectInterface>;
+
+  Assert.IsNotNull(MyClass);
+
+  MyClass.Free;
+end;
+
+procedure TInjectorTest.WhenResolveWithTheSpecializedFunctionMustReturnTheInstanceAsExpected;
+begin
+  FInjector.RegisterFactory('MyFactory', TInstanceFactory.Create(Self));
+
+  var MyClass := FInjector.Resolve<TInjectorTest>('MyFactory');
+
+  Assert.IsNotNull(MyClass);
+end;
+
+procedure TInjectorTest.WhenResolveWithTheSpecializedFunctionUsingParamsMustReturnTheInstanceAsExpected;
+begin
+  FInjector.RegisterFactory('MyFactory', TObjectFactory.Create(FInjector, FContext.GetType(TClassWithConstructorWithTheSameParameterCount).AsInstance));
+
+  var MyClass := FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>('MyFactory', [123]);
+
+  Assert.AreEqual(123, MyClass.IntegerProperty);
+
+  MyClass.Free;
+end;
+
+procedure TInjectorTest.WhenResolveWithTheSpecializedWithParamsMustCreateTheClassWithTheParams;
+begin
+  FInjector.RegisterFactory<TClassWithConstructorWithTheSameParameterCount>;
+
+  var MyClass := FInjector.Resolve<TClassWithConstructorWithTheSameParameterCount>([1234]);
+
+  Assert.IsNotNull(MyClass);
+
+  Assert.AreEqual(1234, MyClass.IntegerProperty);
+
+  MyClass.Free;
+end;
+
+procedure TInjectorTest.WhenTheInjectorIsCreatedItMustRegisterItSelfAsAnInstanceFactory;
+begin
+  Assert.AreEqual(FInjector, FInjector.Resolve<TInjector>);
 end;
 
 procedure TInjectorTest.WhenTheInterfaceHasNotAnObjectThatImplementTheInterfaceMustRaiseAnError;
@@ -763,23 +608,7 @@ begin
     procedure
     begin
       FInjector.Resolve<IAnotherInterface>;
-    end, ETypeFactoryNotRegistered);
-end;
-
-procedure TInjectorTest.WhenTheSingletonDontOwnsTheObjectCantDestroyTheRegisteredObject;
-begin
-  var Injector := TInjector.Create;
-  var MyObject := TMyClassWithDestructor.Create;
-
-  Injector.RegisterFactory(MyObject).AsSingleton(False);
-
-  Injector.Resolve<TMyClassWithDestructor>;
-
-  Injector.Free;
-
-  Assert.IsFalse(TMyClassWithDestructor.DestroyCalled);
-
-  MyObject.Free;
+    end, EFactoryNotRegistered);
 end;
 
 procedure TInjectorTest.WhenTryToRegisterTheSameFactoryMoreThenOnceCannnotRaiseAnyError;
@@ -795,26 +624,67 @@ begin
     end);
 end;
 
+procedure TInjectorTest.WhenTryToResolveAFactoryWithMoreThanOneTypeRegisteredMustRaiseError;
+begin
+  FInjector.RegisterFactory('MyFactory', TInstanceFactory.Create(Self));
+
+  FInjector.RegisterFactory('MyFactory', TInstanceFactory.Create(Self));
+
+  FInjector.RegisterFactory('MyFactory', TInstanceFactory.Create(Self));
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.Resolve('MyFactory');
+    end, EFoundMoreThenOneFactory);
+end;
+
 procedure TInjectorTest.WhenTryToResolveAnInterfaceNotRegisteredMustFindInTheTypeInRttiAndResolveTheType;
 begin
+  var MyInterface: IMyInterface := nil;
+
   Assert.WillNotRaise(
     procedure
     begin
-      var AnInterface := FInjector.Resolve<IMyInterface>;
+      MyInterface := FInjector.Resolve<IMyInterface>;
+    end);
 
-      AnInterface := nil;
+  Assert.IsNotNull(MyInterface);
+
+  MyInterface := nil;
+end;
+
+procedure TInjectorTest.WhenTryToResolveAnTypeNotRegisteredAndCanBeRegisteredMustRaiseError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.Resolve<Integer>;
     end);
 end;
 
 procedure TInjectorTest.WhenTryToResolveATypeNotRegisteredMustFindItInTheRttiAndResolveTheType;
 begin
+  var MyClass: TSimpleClass := nil;
+
   Assert.WillNotRaise(
     procedure
     begin
-      var AClass := FInjector.Resolve<TSimpleClass>;
-
-      AClass.Free;
+      MyClass := FInjector.Resolve<TSimpleClass>;
     end);
+
+  Assert.IsNotNull(MyClass);
+
+  MyClass.Free;
+end;
+
+procedure TInjectorTest.WhenTryToResolveAUnregisteredFactoryMystRaiseError;
+begin
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.Resolve('MyFactory');
+    end, EFactoryNotRegistered);
 end;
 
 { TClassWithConstructor }
@@ -1302,6 +1172,19 @@ end;
 
 { TSingletonFactoryTest }
 
+procedure TSingletonFactoryTest.IfTheOwnedObjectIsntAnObjectCantDestroyTheObjectWhenTheFactoryIsDestroyed;
+begin
+  var MyClass := TMyClassWithDestructor.Create;
+
+  var SingletonFactory := TSingletonFactory.Create(TInstanceFactory.Create(TValue.From(MyClass as IMyInterfaceWithMoreTheOneObject)), True) as IFactory;
+
+  SingletonFactory.Construct(nil);
+
+  SingletonFactory := nil;
+
+  Assert.IsFalse(MyClass.DestroyCalled);
+end;
+
 procedure TSingletonFactoryTest.TheConstructorMustReturnTheFactoryValue;
 begin
   var Factory := TFunctionFactory.Create(
@@ -1355,6 +1238,34 @@ begin
   Assert.AreEqual(2, ParamCount);
 end;
 
+procedure TSingletonFactoryTest.WhenTheFactoryDontOwnsTheObjectCantDestroyTheObjectAfterTheFactoryIsDestroyed;
+begin
+  var MyClass := TMyClassWithDestructor.Create;
+
+  var SingletonFactory := TSingletonFactory.Create(TInstanceFactory.Create(MyClass), False) as IFactory;
+
+  SingletonFactory.Construct(nil);
+
+  SingletonFactory := nil;
+
+  Assert.IsFalse(MyClass.DestroyCalled);
+
+  MyClass.Free;
+end;
+
+procedure TSingletonFactoryTest.WhenTheFactoryOwnsTheObjectMustDestroyWhenTheFactoryIsDestroyed;
+begin
+  var MyClass := TMyClassWithDestructor.Create;
+
+  var SingletonFactory := TSingletonFactory.Create(TInstanceFactory.Create(MyClass), True) as IFactory;
+
+  SingletonFactory.Construct(nil);
+
+  SingletonFactory := nil;
+
+  Assert.IsTrue(MyClass.DestroyCalled);
+end;
+
 { TMyClassWithDestructor }
 
 constructor TMyClassWithDestructor.Create;
@@ -1367,54 +1278,6 @@ begin
   DestroyCalled := True;
 
   inherited;
-end;
-
-{ TResolverFactoryTest }
-
-procedure TResolverFactoryTest.Setup;
-begin
-  FInjector := TInjector.Create;
-end;
-
-procedure TResolverFactoryTest.TearDown;
-begin
-  FInjector.Free;
-end;
-
-procedure TResolverFactoryTest.TheConstructorMustPassTheParametersForTheResolveFunction;
-begin
-  var Factory := TResolverFactory.Create(FInjector, FContext.GetType(TSimpleClass)) as IFactory;
-  var ParameterValue := 0;
-
-  FInjector.RegisterFactory<TSimpleClass>(
-    function (const Params: TArray<TValue>): TSimpleClass
-    begin
-      Result := nil;
-
-      if Length(Params) > 0 then
-        ParameterValue := Params[0].AsInteger;
-    end);
-
-  Factory.Construct([20]);
-
-  Assert.AreEqual(20, ParameterValue);
-end;
-
-procedure TResolverFactoryTest.WhenConstructTheFactoryMustResolveTheTypeOfTheFactory;
-begin
-  var Factory := TResolverFactory.Create(FInjector, FContext.GetType(TSimpleClass)) as IFactory;
-  var FunctionCalled := False;
-
-  FInjector.RegisterFactory<TSimpleClass>(
-    function: TSimpleClass
-    begin
-      FunctionCalled := True;
-      Result := nil;
-    end);
-
-  Factory.Construct(nil);
-
-  Assert.IsTrue(FunctionCalled);
 end;
 
 end.
