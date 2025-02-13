@@ -83,7 +83,7 @@ type
     procedure WhenTheInterfaceHasNotAnObjectThatImplementTheInterfaceMustRaiseAnError;
     [Test]
     procedure WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
-    [TTest]
+    [Test]
     procedure WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
     [Test]
     procedure WhenTheInjectorIsCreatedItMustRegisterItSelfAsAnInstanceFactory;
