@@ -20,11 +20,6 @@ type
     constructor Create(const RttiType: TRttiType);
   end;
 
-  EInterfaceWithoutGUID = class(Exception)
-  public
-    constructor Create(const RttiType: TRttiType);
-  end;
-
   TInjector = class;
 
   TFactoryFunction<T> = reference to function(const Params: TArray<TValue>): T;
@@ -155,13 +150,6 @@ end;
 constructor EConstructorParamsMismatch.Create(const RttiType: TRttiType);
 begin
   inherited CreateFmt('The constructor params mismatch for the type %s!', [RttiType.QualifiedName]);
-end;
-
-{ EInterfaceWithoutGUID }
-
-constructor EInterfaceWithoutGUID.Create(const RttiType: TRttiType);
-begin
-  inherited CreateFmt('When register an interface, it must have a GUID value, check the interface declaration of the type %s!', [RttiType.QualifiedName]);
 end;
 
 { TInjector }

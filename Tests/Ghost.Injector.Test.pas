@@ -84,8 +84,6 @@ type
     [Test]
     procedure WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
     [Test]
-    procedure WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
-    [Test]
     procedure WhenTheInjectorIsCreatedItMustRegisterItSelfAsAnInstanceFactory;
   end;
 
@@ -436,15 +434,6 @@ begin
   var MyInterface := FInjector.Resolve('My Factory').AsType<IMyInterfaceWithMoreTheOneObject>;
 
   Assert.IsNotNull(MyInterface);
-end;
-
-procedure TInjectorTest.WhenRegisterAnInterfaceWithoutGUIDMustRaiseError;
-begin
-//  Assert.WillRaise(
-//    procedure
-//    begin
-//      FInjector.RegisterFactoryOld<IInterfaceWithoutGUID>(TObjectFactory.Create(nil, nil) as IFactory);
-//    end, EInterfaceWithoutGUID);
 end;
 
 procedure TInjectorTest.WhenResolveAFactoryWithParametersMustPassTheValuesToTheFactory;
