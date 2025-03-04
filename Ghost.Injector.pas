@@ -340,9 +340,11 @@ begin
   var ResolveSituation := TryResolve(RttiType.QualifiedName, Params, Result);
 
   if ResolveSituation = NotFound then
+  begin
     RegisterTypes(RttiType);
 
-  Result := Resolve(RttiType.QualifiedName, Params);
+    Result := Resolve(RttiType.QualifiedName, Params);
+  end;
 end;
 
 { TRttiObjectHelper }

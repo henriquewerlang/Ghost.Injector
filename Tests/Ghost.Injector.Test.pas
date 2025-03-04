@@ -85,6 +85,8 @@ type
     procedure WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterfaceMustResolveAllObjects;
     [Test]
     procedure WhenTheInjectorIsCreatedItMustRegisterItSelfAsAnInstanceFactory;
+    [Test]
+    procedure WhenResolveAClassThreeTimesTheClassMustBeConstructedOnlyThreeTimes;
   end;
 
   [TestFixture]
@@ -290,6 +292,15 @@ type
     property Value: TClassWithConstructor read FValue;
   end;
 
+  TClassWithConstructorCounter = class
+  private
+    class var FCounter: Integer;
+  public
+    constructor Create;
+
+    class property Counter: Integer read FCounter write FCounter;
+  end;
+
   IMyInterface = interface
     ['{904F4775-6482-447C-8FDA-849036C92077}']
   end;
@@ -434,6 +445,19 @@ begin
   var MyInterface := FInjector.Resolve('My Factory').AsType<IMyInterfaceWithMoreTheOneObject>;
 
   Assert.IsNotNull(MyInterface);
+end;
+
+procedure TInjectorTest.WhenResolveAClassThreeTimesTheClassMustBeConstructedOnlyThreeTimes;
+begin
+  TClassWithConstructorCounter.Counter := 0;
+
+  FInjector.Resolve<TClassWithConstructorCounter>.Free;
+
+  FInjector.Resolve<TClassWithConstructorCounter>.Free;
+
+  FInjector.Resolve<TClassWithConstructorCounter>.Free;
+
+  Assert.AreEqual(3, TClassWithConstructorCounter.Counter);
 end;
 
 procedure TInjectorTest.WhenResolveAFactoryWithParametersMustPassTheValuesToTheFactory;
@@ -1267,6 +1291,15 @@ begin
   DestroyCalled := True;
 
   inherited;
+end;
+
+{ TClassWithConstructorCounter }
+
+constructor TClassWithConstructorCounter.Create;
+begin
+  inherited;
+
+  Inc(FCounter);
 end;
 
 end.
