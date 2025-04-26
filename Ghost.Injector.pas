@@ -380,7 +380,7 @@ begin
   var ConvertedParams: TArray<TValue> := nil;
   var Method := FindConstructorCandidate(Params, ConvertedParams);
 
-  Result := Method.Invoke(FObjectType.MetaclassType, ConvertedParams).AsObject;
+  Result := Method.Invoke(FObjectType.MetaclassType, ConvertedParams);
 end;
 
 constructor TObjectFactory.Create(const Injector: TInjector; const RttiType: TRttiInstanceType);
