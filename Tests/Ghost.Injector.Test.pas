@@ -87,6 +87,8 @@ type
     procedure WhenTheInjectorIsCreatedItMustRegisterItSelfAsAnInstanceFactory;
     [Test]
     procedure WhenResolveAClassThreeTimesTheClassMustBeConstructedOnlyThreeTimes;
+    [Test]
+    procedure WhenRegistrerAFunctionNamedFactoryMustResolveThisFunctionAsExpected;
   end;
 
   [TestFixture]
@@ -445,6 +447,23 @@ begin
   var MyInterface := FInjector.Resolve('My Factory').AsType<IMyInterfaceWithMoreTheOneObject>;
 
   Assert.IsNotNull(MyInterface);
+end;
+
+procedure TInjectorTest.WhenRegistrerAFunctionNamedFactoryMustResolveThisFunctionAsExpected;
+begin
+  var FactoryName := 'My Factory';
+  var FunctionCalled := False;
+
+  FInjector.RegisterFactory<TObject>(FactoryName,
+    function: TObject
+    begin
+      FunctionCalled := True;
+      Result := nil;
+    end);
+
+  FInjector.Resolve<TObject>(FactoryName);
+
+  Assert.IsTrue(FunctionCalled);
 end;
 
 procedure TInjectorTest.WhenResolveAClassThreeTimesTheClassMustBeConstructedOnlyThreeTimes;

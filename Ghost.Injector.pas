@@ -105,6 +105,7 @@ type
     function RegisterFactory<TI: IInterface; T: class>: TFactoryRegistration; overload;
     function RegisterFactory<TI: IInterface; T: class>(const FactoryName: String): TFactoryRegistration; overload;
     function RegisterFactory<T>(const Instance: T): TFactoryRegistration; overload;
+    function RegisterFactory<T>(const FactoryName: String; const Func: TFunc<T>): TFactoryRegistration; overload;
     function RegisterFactory<T>(const Func: TFunc<T>): TFactoryRegistration; overload;
     function Resolve(const FactoryName: String): TValue; overload;
     function Resolve(const FactoryName: String; const Params: array of const): TValue; overload;
@@ -316,9 +317,12 @@ end;
 
 function TInjector.RegisterFactory<T>(const Func: TFunc<T>): TFactoryRegistration;
 begin
-  var RttiType := FContext.GetType(TypeInfo(T));
+  Result := RegisterFactory<T>(FContext.GetType(TypeInfo(T)).QualifiedName, Func);
+end;
 
-  Result := RegisterFactory(RttiType.QualifiedName, TFunctionFactory.Create(
+function TInjector.RegisterFactory<T>(const FactoryName: String; const Func: TFunc<T>): TFactoryRegistration;
+begin
+  Result := RegisterFactory(FactoryName, TFunctionFactory.Create(
     function(const Params: TArray<TValue>): TValue
     begin
       Result := TValue.From(Func());
