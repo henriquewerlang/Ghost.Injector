@@ -89,6 +89,8 @@ type
     procedure WhenResolveAClassThreeTimesTheClassMustBeConstructedOnlyThreeTimes;
     [Test]
     procedure WhenRegistrerAFunctionNamedFactoryMustResolveThisFunctionAsExpected;
+    [Test]
+    procedure WhenRegisterMoreThanOnceATypeMustRaiseErroWhenTryToResolveASingleInstanceFromTheType;
   end;
 
   [TestFixture]
@@ -447,6 +449,21 @@ begin
   var MyInterface := FInjector.Resolve('My Factory').AsType<IMyInterfaceWithMoreTheOneObject>;
 
   Assert.IsNotNull(MyInterface);
+end;
+
+procedure TInjectorTest.WhenRegisterMoreThanOnceATypeMustRaiseErroWhenTryToResolveASingleInstanceFromTheType;
+begin
+  FInjector.RegisterFactory<TMyInterfaceWithMoreTheOneObject>;
+
+  FInjector.RegisterFactory<TMyInterfaceWithMoreTheOneObject>;
+
+  FInjector.RegisterFactory<TMyInterfaceWithMoreTheOneObject>;
+
+  Assert.WillRaise(
+    procedure
+    begin
+      FInjector.Resolve<TMyInterfaceWithMoreTheOneObject>;
+    end, EFoundMoreThenOneFactory);
 end;
 
 procedure TInjectorTest.WhenRegistrerAFunctionNamedFactoryMustResolveThisFunctionAsExpected;

@@ -348,7 +348,9 @@ begin
     RegisterTypes(RttiType);
 
     Result := Resolve(RttiType.QualifiedName, Params);
-  end;
+  end
+  else
+    CheckResolveSituation(ResolveSituation);
 end;
 
 { TRttiObjectHelper }
