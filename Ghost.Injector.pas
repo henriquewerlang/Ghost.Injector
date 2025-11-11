@@ -7,12 +7,12 @@ uses System.TypInfo, System.Rtti, System.Generics.Collections, System.SysUtils;
 type
   EFactoryNotRegistered = class(Exception)
   public
-    constructor Create;
+    constructor Create(const TypeName: String);
   end;
 
   EFoundMoreThenOneFactory = class(Exception)
   public
-    constructor Create;
+    constructor Create(const TypeName: String);
   end;
 
   EConstructorParamsMismatch = class(Exception)
@@ -91,7 +91,7 @@ type
     function GetFactoryRegister(const FactoryName: String): TList<TFactoryRegistration>;
     function TryResolve(const FactoryName: String; const Params: array of const; var Instance: TValue): TResolveSituation;
 
-    procedure CheckResolveSituation(const Situation: TResolveSituation);
+    procedure CheckResolveSituation(const Situation: TResolveSituation; const TypeName: String);
     procedure RegisterTypes(const RttiType: TRttiType);
 
     property FactoryRegister[const FactoryName: String]: TList<TFactoryRegistration> read GetFactoryRegister;
@@ -134,16 +134,16 @@ implementation
 
 { EFactoryNotRegistered }
 
-constructor EFactoryNotRegistered.Create;
+constructor EFactoryNotRegistered.Create(const TypeName: String);
 begin
-  inherited Create('The factory isn''t registered!');
+  inherited CreateFmt('The factory isn''t registered for type %s!', [TypeName]);
 end;
 
 { EFoundMoreThenOneFactory }
 
-constructor EFoundMoreThenOneFactory.Create;
+constructor EFoundMoreThenOneFactory.Create(const TypeName: String);
 begin
-  inherited Create('Too many factories found!');
+  inherited CreateFmt('Too many factories found for type %s!', [TypeName]);
 end;
 
 { EConstructorParamsMismatch }
@@ -155,12 +155,12 @@ end;
 
 { TInjector }
 
-procedure TInjector.CheckResolveSituation(const Situation: TResolveSituation);
+procedure TInjector.CheckResolveSituation(const Situation: TResolveSituation; const TypeName: String);
 begin
   case Situation of
-    NotFound: raise EFactoryNotRegistered.Create;
+    NotFound: raise EFactoryNotRegistered.Create(TypeName);
     Found: ;
-    MoreThanOneFound: raise EFoundMoreThenOneFactory.Create;
+    MoreThanOneFound: raise EFoundMoreThenOneFactory.Create(TypeName);
   end;
 end;
 
@@ -269,7 +269,7 @@ end;
 
 function TInjector.Resolve(const FactoryName: String; const Params: array of const): TValue;
 begin
-  CheckResolveSituation(TryResolve(FactoryName, Params, Result));
+  CheckResolveSituation(TryResolve(FactoryName, Params, Result), FactoryName);
 end;
 
 function TInjector.Resolve<T>(const Params: array of const): T;
@@ -350,7 +350,7 @@ begin
     Result := Resolve(RttiType.QualifiedName, Params);
   end
   else
-    CheckResolveSituation(ResolveSituation);
+    CheckResolveSituation(ResolveSituation, RttiType.QualifiedName);
 end;
 
 { TRttiObjectHelper }

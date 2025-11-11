@@ -371,7 +371,7 @@ procedure TInjectorTest.WhenAInterfaceHasMoreTemOneObjectThatImplementsTheInterf
 begin
   var Objects := FInjector.ResolveAll<IMyInterfaceWithMoreTheOneObject>;
 
-  Assert.AreEqual(3, Length(Objects));
+  Assert.AreEqual<NativeInt>(3, Length(Objects));
 end;
 
 procedure TInjectorTest.WhenRegisterAFactoryMustReturnTheFactoryLoaded;
